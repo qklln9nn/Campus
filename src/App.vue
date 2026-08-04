@@ -1,85 +1,37 @@
-<script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
+<!-- src/App.vue -->
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <div style="padding: 2rem;">
+    <h1>Campus EventHub 数据库连接测试</h1>
+    <el-button type="primary" @click="fetchEvents">手动刷新数据</el-button>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+    <ul v-if="events.length > 0">
+      <li v-for="event in events" :key="event.id">
+        活动名称: {{ event.title }}
+      </li>
+    </ul>
+    <p v-else>正在加载或暂无数据...</p>
+  </div>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { supabase } from './lib/supabase'
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
+const events = ref<any[]>([])
 
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
+async function fetchEvents() {
+  // 从 public.events 表中选取所有列
+  const { data, error } = await supabase.from('events').select('*')
+  if (error) {
+    console.error('拉取失败:', error.message)
+  } else {
+    events.value = data || []
+    console.log('拉取成功:', data)
   }
 }
-</style>
+
+// 页面加载时自动执行一次
+onMounted(() => {
+  fetchEvents()
+})
+</script>
