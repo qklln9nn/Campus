@@ -1,21 +1,39 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
 
+/**
+ * Vue Router configuration for Campus EventHub
+ * Defines routes for authentication, student dashboard, organiser actions, and admin console.
+ */
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: HomeView,
+      redirect: '/dashboard',
     },
     {
-      path: '/about',
-      name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue'),
+      path: '/login',
+      name: 'login',
+      // Authentication Login View
+      component: () => import('../views/auth/LoginView.vue'),
+    },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      // Student Dashboard View
+      component: () => import('../views/student/DashboardView.vue'),
+    },
+    {
+      path: '/create',
+      name: 'create-event',
+      // Organiser Event Creation View
+      component: () => import('../views/organiser/CreateEventView.vue'),
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      // Admin Management Console View
+      component: () => import('../views/admin/AdminView.vue'),
     },
   ],
 })
