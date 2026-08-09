@@ -9,7 +9,8 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/dashboard',
+      name: 'home',
+      component: () => import('../views/HomeView.vue'),
     },
     {
       path: '/login',
@@ -20,6 +21,11 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../views/student/DashboardView.vue'),
+    },
+    {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('../views/student/ProfileView.vue'),
     },
     {
       path: '/organiser/dashboard',

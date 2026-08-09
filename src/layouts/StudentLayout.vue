@@ -93,21 +93,21 @@
             <div class="default-avatar-student">
               <el-icon><UserFilled /></el-icon>
             </div>
-            <span class="user-name">Alex Johnson</span>
+            <span class="user-name">{{ authStore.currentUser?.name || 'Alex Johnson' }}</span>
             <el-icon><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item>
+              <el-dropdown-item @click="router.push('/profile')">
                 <el-icon><User /></el-icon> My Profile
               </el-dropdown-item>
-              <el-dropdown-item @click="eventStore.activeTab = 'registered'">
+              <el-dropdown-item @click="eventStore.activeTab = 'registered'; router.push('/dashboard')">
                 <el-icon><Ticket /></el-icon> My Registrations ({{ eventStore.userRegisteredCount }})
               </el-dropdown-item>
-              <el-dropdown-item @click="eventStore.activeTab = 'saved'">
+              <el-dropdown-item @click="eventStore.activeTab = 'saved'; router.push('/dashboard')">
                 <el-icon><Star /></el-icon> Saved Events ({{ eventStore.userBookmarkedCount }})
               </el-dropdown-item>
-              <el-dropdown-item divided style="color: #f56c6c;">
+              <el-dropdown-item divided style="color: #f56c6c;" @click="handleLogout">
                 <el-icon><SwitchButton /></el-icon> Log Out
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -233,7 +233,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/eventStore'
+import { useAuthStore } from '@/stores/authStore'
 import type { CategoryType } from '@/types/event'
 import {
   Calendar,
@@ -252,7 +254,14 @@ import {
   SwitchButton,
 } from '@element-plus/icons-vue'
 
+const router = useRouter()
 const eventStore = useEventStore()
+const authStore = useAuthStore()
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
+}
 const isSidebarCollapsed = ref(false)
 
 const categories: CategoryType[] = ['Academic', 'Club', 'Sports', 'Tech', 'Cultural', 'Career']

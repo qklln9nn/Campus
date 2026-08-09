@@ -38,17 +38,17 @@
               <el-icon><UserFilled /></el-icon>
             </div>
             <div class="user-meta">
-              <span class="user-name">Dr. Sarah Jenkins</span>
+              <span class="user-name">{{ authStore.currentUser?.name || 'Dr. Sarah Jenkins' }}</span>
               <span class="user-role">Host & Administrator</span>
             </div>
             <el-icon><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item>
-                <el-icon><User /></el-icon> Organiser Settings
+              <el-dropdown-item @click="router.push('/profile')">
+                <el-icon><User /></el-icon> Profile & Account
               </el-dropdown-item>
-              <el-dropdown-item divided style="color: #f56c6c;">
+              <el-dropdown-item divided style="color: #f56c6c;" @click="handleLogout">
                 <el-icon><SwitchButton /></el-icon> Log Out
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -100,7 +100,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
 import {
   Calendar,
   Expand,
@@ -114,6 +115,14 @@ import {
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
+}
+
 const isSidebarCollapsed = ref(false)
 
 const activeMenuIndex = computed(() => route.path)
