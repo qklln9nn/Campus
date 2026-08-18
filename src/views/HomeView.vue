@@ -13,34 +13,28 @@
           </div>
         </router-link>
 
+        <!-- Navbar Anchor Links -->
         <nav class="nav-links">
-          <router-link to="/" class="nav-item active">Home</router-link>
-          <router-link to="/dashboard" class="nav-item">Explore Events</router-link>
-          <router-link to="/organiser/dashboard" class="nav-item">Organiser Portal</router-link>
+          <a href="#hero" class="nav-item active">Home</a>
+          <a href="#categories" class="nav-item">Event Categories</a>
+          <a href="#featured" class="nav-item">Featured Events</a>
+          <a href="#features" class="nav-item">Platform Features</a>
         </nav>
 
+        <!-- Right Single Auth Action Button -->
         <div class="header-actions">
           <template v-if="authStore.isAuthenticated">
-            <router-link to="/profile">
-              <el-button type="primary" plain class="create-btn">
-                <el-icon class="el-icon--left"><User /></el-icon> My Profile
-              </el-button>
-            </router-link>
-            <router-link to="/dashboard">
-              <el-button type="primary" class="login-btn">
-                <el-icon class="el-icon--left"><Compass /></el-icon> Dashboard
-              </el-button>
-            </router-link>
+            <el-button type="primary" class="login-btn" @click="handleViewAllEvents">
+              <el-icon class="el-icon--left"><Compass /></el-icon> Student Portal
+            </el-button>
+            <el-button type="info" plain class="logout-btn" @click="authStore.logout()">
+              Sign Out
+            </el-button>
           </template>
           <template v-else>
-            <router-link to="/login?tab=register">
-              <el-button type="primary" plain class="create-btn">
-                Register
-              </el-button>
-            </router-link>
             <router-link to="/login">
-              <el-button type="primary" class="login-btn">
-                <el-icon class="el-icon--left"><UserFilled /></el-icon> Sign In
+              <el-button type="primary" size="large" class="login-btn">
+                <el-icon class="el-icon--left"><UserFilled /></el-icon> Sign In / Login
               </el-button>
             </router-link>
           </template>
@@ -48,13 +42,13 @@
       </div>
     </header>
 
-    <!-- Main Hero Banner Section -->
-    <section class="hero-section">
+    <!-- 1. Hero & Dashboard Overview Section -->
+    <section id="hero" class="hero-section">
       <div class="hero-backdrop-glow"></div>
       <div class="hero-container">
         <div class="hero-badge">
           <el-icon><Lightning /></el-icon>
-          <span>Campus Life Re-imagined for 2026</span>
+          <span>Campus EventHub Network 2026</span>
         </div>
 
         <h1 class="hero-title">
@@ -66,21 +60,13 @@
         </p>
 
         <div class="hero-cta-group">
-          <router-link to="/dashboard">
-            <el-button type="primary" size="large" class="hero-cta-primary">
-              <el-icon class="el-icon--left"><Compass /></el-icon>
-              Explore All Events
-            </el-button>
-          </router-link>
-          <router-link to="/create">
-            <el-button size="large" class="hero-cta-secondary">
-              <el-icon class="el-icon--left"><Plus /></el-icon>
-              Host An Event
-            </el-button>
-          </router-link>
+          <el-button type="primary" size="large" class="hero-cta-primary" @click="handleViewAllEvents">
+            <el-icon class="el-icon--left"><Compass /></el-icon>
+            Explore All Events
+          </el-button>
         </div>
 
-        <!-- Dynamic Live Statistics Bar -->
+        <!-- Dynamic Live Statistics Bar / Dashboard Overview -->
         <div class="hero-stats-grid">
           <div class="stat-card">
             <span class="stat-number">{{ eventStore.events.length }}</span>
@@ -94,23 +80,23 @@
           <div class="stat-divider"></div>
           <div class="stat-card">
             <span class="stat-number">100%</span>
-            <span class="stat-label">Instant Confirmation</span>
+            <span class="stat-label">Instant Pass Sync</span>
           </div>
           <div class="stat-divider"></div>
           <div class="stat-card">
             <span class="stat-number">24/7</span>
-            <span class="stat-label">Waitlist Auto-Sync</span>
+            <span class="stat-label">Waitlist Auto-Queue</span>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Categories Exploration Grid -->
-    <section class="categories-section">
+    <!-- 2. Event Categories Section -->
+    <section id="categories" class="categories-section">
       <div class="section-container">
         <div class="section-header">
           <span class="section-tag">EXPLORE BY CATEGORY</span>
-          <h2 class="section-title">Find Events Suited For You</h2>
+          <h2 class="section-title">Event Categories & Domains</h2>
           <p class="section-desc">Filter through diverse categories tailored for academics, tech enthusiasts, athletes, and club leaders.</p>
         </div>
 
@@ -131,20 +117,21 @@
       </div>
     </section>
 
-    <!-- Featured / Popular Events Grid -->
-    <section class="featured-section">
+    <!-- 3. Featured Events (Strictly 3 Events) -->
+    <section id="featured" class="featured-section">
       <div class="section-container">
         <div class="featured-header-row">
           <div>
-            <span class="section-tag">WHAT'S HAPPENING NEXT</span>
-            <h2 class="section-title">Featured & Hot Events</h2>
+            <span class="section-tag">FEATURED EVENTS</span>
+            <h2 class="section-title">Upcoming Highlight Events</h2>
           </div>
-          <router-link to="/dashboard" class="view-all-link">
+          <a class="view-all-link" @click.prevent="handleViewAllEvents">
             View All Events ({{ eventStore.events.length }})
             <el-icon><Right /></el-icon>
-          </router-link>
+          </a>
         </div>
 
+        <!-- Displays 3 Events -->
         <div class="featured-grid">
           <el-row :gutter="24">
             <el-col
@@ -155,35 +142,36 @@
               :md="8"
               class="card-col"
             >
-              <EventCard
-                :event="event"
-                @register-event="openRegistrationDialog"
-                @cancel-registration="handleCancelRegistration"
-                @toggle-bookmark="eventStore.toggleBookmark"
-              />
+              <div class="clickable-card-wrapper" @click="handleCardClick(event)">
+                <EventCard
+                  :event="event"
+                  hide-action-btn
+                  hide-overlay-actions
+                />
+              </div>
             </el-col>
           </el-row>
         </div>
       </div>
     </section>
 
-    <!-- Dual Role Highlights Section -->
-    <section class="portals-section">
+    <!-- 4. Platform Features Section (功能介绍) -->
+    <section id="features" class="portals-section">
       <div class="section-container">
         <div class="section-header center">
-          <span class="section-tag">MADE FOR THE ENTIRE CAMPUS</span>
-          <h2 class="section-title">Tailored Solutions For Every Member</h2>
+          <span class="section-tag">PLATFORM FEATURES</span>
+          <h2 class="section-title">Powerful Tools For Campus Community</h2>
         </div>
 
         <div class="portals-grid">
           <!-- Student Portal Card -->
           <div class="portal-card student-portal">
-            <div class="portal-badge">STUDENT PORTAL</div>
-            <h3 class="portal-title">Seamless Experience For Attendees</h3>
+            <div class="portal-badge">STUDENT EXPERIENCE</div>
+            <h3 class="portal-title">Seamless Event Discovery</h3>
             <ul class="portal-feature-list">
               <li>
                 <el-icon><CircleCheckFilled /></el-icon>
-                <span>Instant reservation with access pass generation</span>
+                <span>Instant reservation with QR access pass generation</span>
               </li>
               <li>
                 <el-icon><CircleCheckFilled /></el-icon>
@@ -194,11 +182,9 @@
                 <span>One-click event bookmarking and pass management</span>
               </li>
             </ul>
-            <router-link to="/dashboard">
-              <el-button type="primary" size="large" class="portal-btn">
-                Enter Student Dashboard
-              </el-button>
-            </router-link>
+            <el-button type="primary" size="large" class="portal-btn-unified" @click="handleViewAllEvents">
+              Enter Student Portal
+            </el-button>
           </div>
 
           <!-- Organiser Portal Card -->
@@ -219,11 +205,9 @@
                 <span>Automated capacity management & waitlist handling</span>
               </li>
             </ul>
-            <router-link to="/organiser/dashboard">
-              <el-button type="success" size="large" class="portal-btn">
-                Go To Organiser Console
-              </el-button>
-            </router-link>
+            <el-button type="success" size="large" class="portal-btn-unified" @click="handleOrganiserPortal">
+              <el-icon class="el-icon--left"><Management /></el-icon> Enter Organiser Console
+            </el-button>
           </div>
         </div>
       </div>
@@ -382,9 +366,9 @@ const totalRegistrations = computed(() => {
   return eventStore.events.reduce((sum, e) => sum + e.registeredCount, 0)
 })
 
-// Top Featured Events (first 6)
+// Top Featured Events (Strictly 3 Events)
 const featuredEvents = computed(() => {
-  return eventStore.events.slice(0, 6)
+  return eventStore.events.slice(0, 3)
 })
 
 // Category Events Count Helper
@@ -392,14 +376,54 @@ function getCategoryCount(catName: CategoryType) {
   return eventStore.events.filter(e => e.category === catName).length
 }
 
-// Navigate to Dashboard filtered by Category
-function navigateToCategory(catName: CategoryType) {
-  eventStore.selectedCategory = catName
-  router.push('/dashboard')
+// Smart Navigation: Check Login State before View All or Category Filter
+function handleViewAllEvents() {
+  if (!authStore.isAuthenticated) {
+    ElMessage.info('Please sign in first to view all events and access your student portal.')
+    router.push('/login')
+  } else {
+    router.push('/dashboard')
+  }
 }
 
-// Registration Dialog Handle
+// Smart Navigation: Organiser Console
+function handleOrganiserPortal() {
+  if (!authStore.isAuthenticated) {
+    ElMessage.info('Please sign in first to access the Organiser Console.')
+    router.push('/login')
+  } else {
+    router.push('/organiser/dashboard')
+  }
+}
+
+// Navigate to Category with Login Inspection
+function navigateToCategory(catName: CategoryType) {
+  eventStore.selectedCategory = catName
+  if (!authStore.isAuthenticated) {
+    ElMessage.info(`Please sign in first to explore ${catName} events.`)
+    router.push('/login')
+  } else {
+    router.push('/dashboard')
+  }
+}
+
+// Card Click Handle: Redirect to Login or Student Dashboard
+function handleCardClick(_event: EventItem) {
+  if (!authStore.isAuthenticated) {
+    ElMessage.info('Please sign in first to view event details and register.')
+    router.push('/login')
+  } else {
+    router.push('/dashboard')
+  }
+}
+
+// Registration Dialog Handle: Require Login before Registration
 function openRegistrationDialog(event: EventItem) {
+  if (!authStore.isAuthenticated) {
+    ElMessage.info('Please sign in first to register for campus events.')
+    router.push('/login')
+    return
+  }
   selectedEvent.value = event
   showRegistrationModal.value = true
 }
@@ -762,18 +786,49 @@ function handleCancelRegistration(eventId: string) {
   margin-top: 4px;
 }
 
-/* Featured Section */
+/* Featured Events Section */
 .featured-section {
   background: #ffffff;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
 }
 
 .featured-header-row {
   display: flex;
-  align-items: flex-end;
   justify-content: space-between;
+  align-items: flex-end;
   margin-bottom: 40px;
+}
+
+.card-col {
+  margin-bottom: 24px;
+}
+
+.view-all-center-container {
+  margin-top: 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.view-all-large-btn {
+  padding: 14px 36px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.view-all-large-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+}
+
+.view-all-subtext {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: 0;
 }
 
 .view-all-link {
@@ -792,6 +847,11 @@ function handleCancelRegistration(eventId: string) {
 
 .card-col {
   margin-bottom: 24px;
+}
+
+.clickable-card-wrapper {
+  cursor: pointer;
+  height: 100%;
 }
 
 /* Portals Section */
@@ -867,13 +927,20 @@ function handleCancelRegistration(eventId: string) {
   font-size: 1.1rem;
 }
 
-.organiser-portal .portal-feature-list .el-icon {
-  color: #16a34a;
+.portal-btn-unified {
+  width: 100% !important;
+  height: 48px !important;
+  font-size: 0.98rem !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+  margin-top: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.portal-btn {
-  width: 100%;
-  font-weight: 700;
+.portal-btn-unified:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
 }
 
 /* Footer */
