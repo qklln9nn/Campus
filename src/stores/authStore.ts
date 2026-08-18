@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { supabase } from '@/lib/supabase'
 
 export type UserRole = 'STUDENT' | 'ORGANISER' | 'ADMIN'
 
@@ -27,83 +28,225 @@ export interface UserProfile {
   bio: string
 }
 
-const DEFAULT_STUDENT_PROFILE: UserProfile = {
-  id: 'usr-student-001',
-  name: 'Alex Johnson',
-  email: 'alex.johnson@campus.edu',
-  role: 'STUDENT',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-  studentId: 'STU-2026-8942',
-  major: 'Computer Science & Software Engineering',
-  grade: 'Senior (Year 4)',
-  interests: ['AI & Machine Learning', 'Hackathons', 'Robotics & Hardware', 'Inter-Faculty Sports'],
-  clubs: ['Google Developer Student Club', 'ACM Student Chapter', 'Campus Robotics League'],
-  availableTime: ['Weekday Evenings (After 5 PM)', 'Saturday All Day'],
-  notificationPreferences: {
-    emailAlerts: true,
-    pushNotifications: true,
-    eventReminders: true,
-    waitlistUpdates: true,
-    weeklyDigest: false,
-  },
-  bio: 'Passionate about full-stack web applications, AI research, and campus event organizing.',
-}
-
 export const useAuthStore = defineStore('auth', () => {
   const STORAGE_KEY = 'campus_eventhub_user'
+  const REGISTERED_USERS_KEY = 'campus_registered_users'
 
   const savedUser = localStorage.getItem(STORAGE_KEY)
   const currentUser = ref<UserProfile | null>(
-    savedUser ? JSON.parse(savedUser) : DEFAULT_STUDENT_PROFILE
+    savedUser ? JSON.parse(savedUser) : null
+  )
+
+  // Local Registered Users Registry (For offline / non-supabase fallback validation)
+  const savedRegisteredUsers = localStorage.getItem(REGISTERED_USERS_KEY)
+  const registeredUsers = ref<Record<string, UserProfile>>(
+    savedRegisteredUsers ? JSON.parse(savedRegisteredUsers) : {}
   )
 
   const isAuthenticated = ref<boolean>(!!currentUser.value)
+  const isLoading = ref<boolean>(false)
 
   const userRole = computed<UserRole>(() => currentUser.value?.role || 'STUDENT')
 
-  function login(email: string, _password: string, role: UserRole = 'STUDENT') {
-    let name = 'Alex Johnson'
-    let studentId = 'STU-2026-8942'
-    if (role === 'ORGANISER') {
-      name = 'Dr. Sarah Jenkins'
-      studentId = 'ORG-8821'
-    } else if (role === 'ADMIN') {
-      name = 'Admin Officer'
-      studentId = 'ADM-0001'
+  /**
+   * Real Supabase & Strict Offline Login Interceptor
+   */
+  async function login(email: string, password?: string, fallbackRole: UserRole = 'STUDENT'): Promise<{ success: boolean; message?: string }> {
+    isLoading.value = true
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+
+    // Validate if Key is proper JWT format
+    const isStandardJwt = anonKey && anonKey.startsWith('eyJ')
+
+    try {
+      if (import.meta.env.VITE_SUPABASE_URL && isStandardJwt) {
+        // Race condition timeout guard (3.5 seconds)
+        const authPromise = supabase.auth.signInWithPassword({
+          email,
+          password: password || '',
+        })
+        const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: { message: 'Network request timed out. Please check your Supabase API credentials.' } }), 4000)
+        )
+
+        const { data: authData, error: authError } = await Promise.race([authPromise, timeoutPromise])
+
+        if (authError || !authData?.user) {
+          return {
+            success: false,
+            message: authError?.message || 'Account not found or password incorrect. Please register first.',
+          }
+        }
+
+        // Fetch User Role & Profile from 'profiles' Table
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single()
+
+        const dbRole: UserRole = profile?.role ? (profile.role.toUpperCase() as UserRole) : fallbackRole
+
+        currentUser.value = {
+          id: authData.user.id,
+          name: profile?.name || (authData.user.email ? authData.user.email.split('@')[0] : '') || 'Campus User',
+          email: authData.user.email || email,
+          role: dbRole,
+          studentId: profile?.student_id || '',
+          major: profile?.major || '',
+          grade: profile?.grade || '',
+          interests: [],
+          clubs: [],
+          availableTime: [],
+          notificationPreferences: {
+            emailAlerts: true,
+            pushNotifications: true,
+            eventReminders: true,
+            waitlistUpdates: true,
+            weeklyDigest: false,
+          },
+          bio: profile?.bio || '',
+        }
+        isAuthenticated.value = true
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
+        return { success: true }
+      } else if (anonKey && !isStandardJwt) {
+        return {
+          success: false,
+          message: 'Invalid VITE_SUPABASE_ANON_KEY format! Key should be a JWT token starting with "eyJ...". Please check your .env.local file.',
+        }
+      }
+    } catch (e: any) {
+      console.warn('Supabase Auth attempt failed:', e)
+    } finally {
+      isLoading.value = false
     }
 
-    currentUser.value = {
-      ...DEFAULT_STUDENT_PROFILE,
-      id: `usr-${role.toLowerCase()}-${Date.now()}`,
-      name: name,
-      email: email || `${role.toLowerCase()}@campus.edu`,
-      role: role,
-      studentId: studentId,
+    // Strict Offline Local Validation (Check if user registered before)
+    const normalizedEmail = email.trim().toLowerCase()
+    const existingUser = registeredUsers.value[normalizedEmail]
+
+    if (!existingUser) {
+      return {
+        success: false,
+        message: `No account found for "${email}"! Please register an account first.`,
+      }
     }
+
+    currentUser.value = existingUser
     isAuthenticated.value = true
     localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
+    return { success: true }
   }
 
-  function register(details: {
+  /**
+   * Real Supabase & Strict Offline Registration Interceptor
+   */
+  async function register(details: {
     name: string
     email: string
     password?: string
     role: UserRole
     major?: string
     grade?: string
-  }) {
-    currentUser.value = {
-      ...DEFAULT_STUDENT_PROFILE,
+  }): Promise<{ success: boolean; message?: string }> {
+    isLoading.value = true
+    const normalizedEmail = details.email.trim().toLowerCase()
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+    const isStandardJwt = anonKey && anonKey.startsWith('eyJ')
+
+    try {
+      if (import.meta.env.VITE_SUPABASE_URL && isStandardJwt) {
+        const signUpPromise = supabase.auth.signUp({
+          email: details.email,
+          password: details.password || '',
+          options: {
+            data: {
+              name: details.name,
+              role: details.role.toLowerCase(),
+            },
+          },
+        })
+        const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: { message: 'Supabase network timeout. Please check your API Key in .env.local.' } }), 4000)
+        )
+
+        const { data: authData, error: authError } = await Promise.race([signUpPromise, timeoutPromise])
+
+        if (authError || !authData?.user) {
+          return {
+            success: false,
+            message: authError?.message || 'Registration failed. Email may already be registered.',
+          }
+        }
+
+        const newProfile: UserProfile = {
+          id: authData.user.id,
+          name: details.name,
+          email: details.email,
+          role: details.role,
+          major: details.major || '',
+          grade: details.grade || '',
+          studentId: `STU-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          interests: [],
+          clubs: [],
+          availableTime: [],
+          notificationPreferences: {
+            emailAlerts: true,
+            pushNotifications: true,
+            eventReminders: true,
+            waitlistUpdates: true,
+            weeklyDigest: false,
+          },
+          bio: '',
+        }
+
+        currentUser.value = newProfile
+        isAuthenticated.value = true
+        registeredUsers.value[normalizedEmail] = newProfile
+        localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(registeredUsers.value))
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
+        return { success: true }
+      } else if (anonKey && !isStandardJwt) {
+        return {
+          success: false,
+          message: 'Invalid VITE_SUPABASE_ANON_KEY format! Key in .env.local should be a JWT token starting with "eyJ...".',
+        }
+      }
+    } catch (e: any) {
+      console.warn('Supabase SignUp attempt warning:', e)
+    } finally {
+      isLoading.value = false
+    }
+
+    // Local Fallback User Save
+    const newProfile: UserProfile = {
       id: `usr-${Date.now()}`,
       name: details.name,
       email: details.email,
       role: details.role,
-      major: details.major || 'Computer Science & Software Engineering',
-      grade: details.grade || 'Freshman (Year 1)',
+      major: details.major || '',
+      grade: details.grade || '',
       studentId: `STU-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      interests: [],
+      clubs: [],
+      availableTime: [],
+      notificationPreferences: {
+        emailAlerts: true,
+        pushNotifications: true,
+        eventReminders: true,
+        waitlistUpdates: true,
+        weeklyDigest: false,
+      },
+      bio: '',
     }
+
+    registeredUsers.value[normalizedEmail] = newProfile
+    currentUser.value = newProfile
     isAuthenticated.value = true
+    localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(registeredUsers.value))
     localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
+    return { success: true }
   }
 
   function updateProfile(updatedData: Partial<UserProfile>) {
@@ -113,17 +256,29 @@ export const useAuthStore = defineStore('auth', () => {
       ...updatedData,
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
+
+    // Sync to Supabase if connected
+    if (supabase && import.meta.env.VITE_SUPABASE_URL) {
+      supabase.from('profiles').update({
+        name: currentUser.value.name,
+        bio: currentUser.value.bio,
+      }).eq('id', currentUser.value.id).then()
+    }
   }
 
   function logout() {
     currentUser.value = null
     isAuthenticated.value = false
     localStorage.removeItem(STORAGE_KEY)
+    if (supabase && import.meta.env.VITE_SUPABASE_URL) {
+      supabase.auth.signOut().then()
+    }
   }
 
   return {
     currentUser,
     isAuthenticated,
+    isLoading,
     userRole,
     login,
     register,

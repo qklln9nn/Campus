@@ -14,8 +14,8 @@
         {{ statusText }}
       </div>
 
-      <!-- Bookmark & Report Action Buttons -->
-      <div class="poster-actions-overlay">
+      <!-- Bookmark & Report Action Buttons (Hidden when hideOverlayActions is true) -->
+      <div class="poster-actions-overlay" v-if="!hideOverlayActions">
         <button 
           class="overlay-btn report-btn" 
           @click.stop="openReportModal"
@@ -90,8 +90,8 @@
         {{ event.category }}
       </el-tag>
 
-      <!-- Dynamic Action Button -->
-      <div class="action-btn-wrapper">
+      <!-- Dynamic Action Button or Details Link -->
+      <div class="action-btn-wrapper" v-if="!hideActionBtn">
         <el-button 
           v-if="event.isRegistered" 
           type="success" 
@@ -133,6 +133,11 @@
         >
           Register Now
         </el-button>
+      </div>
+
+      <div class="view-details-hint" v-else>
+        <span>View Details</span>
+        <el-icon><Right /></el-icon>
       </div>
     </div>
 
@@ -180,13 +185,21 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { EventItem, CategoryType } from '@/types/event'
-import { Calendar, Location, User, Star, StarFilled, Check, Clock, Warning } from '@element-plus/icons-vue'
+import { Calendar, Location, User, Star, StarFilled, Check, Clock, Warning, Right } from '@element-plus/icons-vue'
 import { handlePosterError, DEFAULT_FALLBACK_POSTER } from '@/lib/posterFallback'
 import { ElMessage } from 'element-plus'
 
-const props = defineProps<{
-  event: EventItem
-}>()
+const props = withDefaults(
+  defineProps<{
+    event: EventItem
+    hideActionBtn?: boolean
+    hideOverlayActions?: boolean
+  }>(),
+  {
+    hideActionBtn: false,
+    hideOverlayActions: false,
+  }
+)
 
 const reportModalVisible = ref(false)
 const reportReason = ref('')
@@ -521,5 +534,19 @@ const categoryTagType = computed(() => {
 
 .register-btn:hover {
   box-shadow: 0 6px 14px rgba(64, 158, 255, 0.35);
+}
+
+.view-details-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #2563eb;
+  transition: transform 0.2s ease;
+}
+
+.event-card:hover .view-details-hint {
+  transform: translateX(3px);
 }
 </style>
