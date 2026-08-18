@@ -251,6 +251,7 @@ import {
   ArrowDown,
   User,
   UserFilled,
+  Setting,
   SwitchButton,
 } from '@element-plus/icons-vue'
 
