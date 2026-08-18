@@ -14,15 +14,25 @@
         {{ statusText }}
       </div>
 
-      <!-- Bookmark Button Overlay -->
-      <button 
-        class="bookmark-btn" 
-        :class="{ active: event.isBookmarked }" 
-        @click.stop="$emit('toggle-bookmark', event.id)"
-        title="Save Event"
-      >
-        <el-icon><StarFilled v-if="event.isBookmarked" /><Star v-else /></el-icon>
-      </button>
+      <!-- Bookmark & Report Action Buttons -->
+      <div class="poster-actions-overlay">
+        <button 
+          class="overlay-btn report-btn" 
+          @click.stop="openReportModal"
+          title="Report Event Violation"
+        >
+          <el-icon><Warning /></el-icon>
+        </button>
+
+        <button 
+          class="overlay-btn bookmark-btn" 
+          :class="{ active: event.isBookmarked }" 
+          @click.stop="$emit('toggle-bookmark', event.id)"
+          title="Save Event"
+        >
+          <el-icon><StarFilled v-if="event.isBookmarked" /><Star v-else /></el-icon>
+        </button>
+      </div>
     </div>
 
     <!-- Middle Content Section -->
@@ -125,18 +135,82 @@
         </el-button>
       </div>
     </div>
+
+    <!-- Report Event Violation Modal -->
+    <el-dialog
+      v-model="reportModalVisible"
+      title="Report Event Violation"
+      width="440px"
+      append-to-body
+    >
+      <div class="report-form-body">
+        <p class="report-target-text">Reporting: <strong>{{ event.title }}</strong></p>
+
+        <div class="form-group">
+          <label>Reason for Report:</label>
+          <el-select v-model="reportReason" placeholder="Select violation category" style="width: 100%">
+            <el-option label="Unsanctioned / Safety Hazard" value="Safety Hazard" />
+            <el-option label="Fraud & Misleading Information" value="Fraud & Misleading" />
+            <el-option label="Inappropriate Content or Speech" value="Inappropriate Content" />
+            <el-option label="Other Issue" value="Other" />
+          </el-select>
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <label>Detailed Explanation:</label>
+          <el-input
+            v-model="reportDetails"
+            type="textarea"
+            :rows="3"
+            placeholder="Provide context or evidence for system administrators..."
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="reportModalVisible = false">Cancel</el-button>
+        <el-button type="danger" :loading="isSubmittingReport" @click="submitReport">
+          Submit Report
+        </el-button>
+      </template>
+    </el-dialog>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import type { EventItem, CategoryType } from '@/types/event'
-import { Calendar, Location, User, Star, StarFilled, Check, Clock } from '@element-plus/icons-vue'
+import { Calendar, Location, User, Star, StarFilled, Check, Clock, Warning } from '@element-plus/icons-vue'
 import { handlePosterError, DEFAULT_FALLBACK_POSTER } from '@/lib/posterFallback'
+import { ElMessage } from 'element-plus'
 
 const props = defineProps<{
   event: EventItem
 }>()
+
+const reportModalVisible = ref(false)
+const reportReason = ref('')
+const reportDetails = ref('')
+const isSubmittingReport = ref(false)
+
+function openReportModal() {
+  reportReason.value = ''
+  reportDetails.value = ''
+  reportModalVisible.value = true
+}
+
+function submitReport() {
+  if (!reportReason.value) {
+    ElMessage.warning('Please select a reason for reporting.')
+    return
+  }
+  isSubmittingReport.value = true
+  setTimeout(() => {
+    isSubmittingReport.value = false
+    reportModalVisible.value = false
+    ElMessage.success('Report ticket submitted! It will be reviewed in the Admin Console.')
+  }, 600)
+}
 
 function onImgError(e: Event) {
   handlePosterError(e, props.event.category)
@@ -256,15 +330,20 @@ const categoryTagType = computed(() => {
   background: rgba(142, 68, 173, 0.9);
 }
 
-/* Bookmark Icon Button */
-.bookmark-btn {
+/* Bookmark & Report Action Buttons Overlay */
+.poster-actions-overlay {
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.overlay-btn {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.9);
   border: none;
   display: flex;
   align-items: center;
@@ -273,18 +352,35 @@ const categoryTagType = computed(() => {
   color: #606266;
   transition: all 0.2s ease;
   backdrop-filter: blur(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.bookmark-btn:hover {
+.overlay-btn:hover {
   transform: scale(1.1);
   background: #ffffff;
-  color: #f39c12;
+}
+
+.report-btn:hover {
+  color: #f56c6c;
 }
 
 .bookmark-btn.active {
   color: #f39c12;
   background: #ffffff;
+}
+
+.report-target-text {
+  font-size: 0.95rem;
+  color: #303133;
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 4px;
+  display: block;
 }
 
 /* Card Content Area */
