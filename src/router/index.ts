@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import { ElMessage } from 'element-plus'
 
 /**
  * Vue Router configuration for Campus EventHub
@@ -6,6 +8,12 @@ import { createRouter, createWebHistory } from 'vue-router'
  */
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  scrollBehavior(_to, _from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+    return { top: 0, left: 0 }
+  },
   routes: [
     {
       path: '/',
@@ -70,6 +78,40 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+/**
+ * Global Navigation Guard: Strict Role-Based Access Control (RBAC)
+ */
+router.beforeEach((to, _from, next) => {
+  // Lazy import authStore to avoid circular dependency
+  const authStore = useAuthStore()
+
+  // 1. Unauthenticated Protection
+  const publicRoutes = ['home', 'login']
+  if (!authStore.isAuthenticated && !publicRoutes.includes(to.name as string)) {
+    ElMessage.info('Please sign in first to access your portal.')
+    return next({ name: 'login' })
+  }
+
+  // 2. Role-Based Access Enforcement
+  if (authStore.isAuthenticated) {
+    const role = authStore.userRole
+
+    // Organiser Routes Protection: Prevent Student Access
+    if ((to.path.startsWith('/organiser') || to.path === '/create') && role === 'STUDENT') {
+      ElMessage.error('Access Denied: Student accounts cannot access the Organiser Console.')
+      return next({ path: '/dashboard' })
+    }
+
+    // Admin Routes Protection: Prevent Non-Admin Access
+    if (to.path.startsWith('/admin') && role !== 'ADMIN') {
+      ElMessage.error('Access Denied: Administrator role required.')
+      return next({ path: role === 'ORGANISER' ? '/organiser/dashboard' : '/dashboard' })
+    }
+  }
+
+  next()
 })
 
 export default router
