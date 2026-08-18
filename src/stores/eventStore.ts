@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { supabase } from '@/lib/supabase'
 import type { EventItem, CategoryType } from '@/types/event'
 
 export interface AttendeeItem {
@@ -297,6 +298,45 @@ export const useEventStore = defineStore('event', () => {
     }
   }
 
+  /**
+   * Fetch Real Events Data from Supabase Table 'events'
+   */
+  async function fetchEventsFromSupabase() {
+    try {
+      if (supabase && import.meta.env.VITE_SUPABASE_URL) {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('status', 'approved')
+
+        if (!error && data && data.length > 0) {
+          events.value = data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            description: item.description || '',
+            category: (item.category || 'Tech') as CategoryType,
+            posterUrl: item.poster_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
+            startTime: item.start_time || '2026-10-28 14:00',
+            endTime: item.end_time || '2026-10-28 18:00',
+            location: item.location || 'Campus Center Auditorium',
+            organiser: {
+              name: item.organiser_name || 'Campus Activity Board',
+            },
+            capacity: item.capacity || 100,
+            registeredCount: item.registered_count || 0,
+            waitlistCount: item.waitlist_count || 0,
+            status: item.registered_count >= item.capacity ? 'WAITLIST' : 'OPEN',
+            isRegistered: false,
+            isWaitlisted: false,
+            isBookmarked: false,
+          }))
+        }
+      }
+    } catch (e) {
+      console.warn('Supabase fetchEvents warning, using static fallback events:', e)
+    }
+  }
+
   function getAttendees(eventId: string): AttendeeItem[] {
     return eventAttendeesMap.value[eventId] || []
   }
@@ -333,6 +373,7 @@ export const useEventStore = defineStore('event', () => {
     userRegisteredCount,
     userWaitlistedCount,
     userBookmarkedCount,
+    fetchEventsFromSupabase,
     toggleBookmark,
     registerEvent,
     cancelRegistration,
