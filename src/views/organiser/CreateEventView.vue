@@ -9,7 +9,10 @@
         </div>
         <div class="header-actions">
           <el-button @click="handleCancel">Cancel</el-button>
-          <el-button type="primary" :loading="isSubmitting" @click="submitForm(formRef)">
+          <el-button type="info" plain :loading="isSubmitting" @click="submitForm(formRef, true)">
+            <el-icon><Document /></el-icon> Save as Draft
+          </el-button>
+          <el-button type="primary" :loading="isSubmitting" @click="submitForm(formRef, false)">
             <el-icon><Check /></el-icon> {{ isEditMode ? 'Save Changes' : 'Publish Event' }}
           </el-button>
         </div>
@@ -381,52 +384,59 @@ onMounted(() => {
 })
 
 // Form Submission
-async function submitForm(formEl: FormInstance | undefined) {
+async function submitForm(formEl: FormInstance | undefined, isDraft: boolean = false) {
   if (!formEl) return
-  await formEl.validate((valid) => {
+  await formEl.validate(async (valid) => {
     if (valid) {
       isSubmitting.value = true
-      setTimeout(() => {
-        const startStr = formData.dateTimeRange[0] ?? ''
-        const endStr = formData.dateTimeRange[1] ?? ''
+      const startStr = formData.dateTimeRange[0] ?? ''
+      const endStr = formData.dateTimeRange[1] ?? ''
 
-        if (isEditMode.value && editingEventId.value) {
-          eventStore.updateEvent(editingEventId.value, {
-            title: formData.title,
-            category: formData.category,
-            organiser: {
-              name: formData.organiserName,
-              avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=Host',
-            },
-            startTime: startStr,
-            endTime: endStr,
-            location: formData.location,
-            capacity: formData.capacity,
-            posterUrl: formData.posterUrl,
-            description: formData.description,
-          })
+      // Clean out separator '•' and extract valid YYYY-MM-DD and HH:mm
+      const cleanStart = (startStr || '').replace(/•/g, ' ').replace(/\s+/g, ' ').trim()
+      const cleanEnd = (endStr || '').replace(/•/g, ' ').replace(/\s+/g, ' ').trim()
+
+      const startParts = cleanStart.split(' ')
+      const endParts = cleanEnd.split(' ')
+
+      const datePart = startParts.find((p) => p.includes('-')) || '2026-11-01'
+      const startTimePart = startParts.find((p) => p.includes(':')) || '14:00'
+      const endTimePart = endParts.find((p) => p.includes(':')) || '18:00'
+
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        organiserName: formData.organiserName,
+        date: datePart,
+        startTime: startTimePart,
+        endTime: endTimePart,
+        location: formData.location,
+        capacity: formData.capacity,
+        posterUrl: formData.posterUrl,
+        isDraft,
+      }
+
+      let res
+      if (isEditMode.value && editingEventId.value) {
+        res = await eventStore.updateEventInSupabase(editingEventId.value, payload)
+      } else {
+        res = await eventStore.createEventInSupabase(payload)
+      }
+
+      isSubmitting.value = false
+      if (res.success) {
+        if (isEditMode.value) {
           ElMessage.success('Event updated successfully!')
+        } else if (isDraft) {
+          ElMessage.success('Event draft saved successfully!')
         } else {
-          eventStore.addEvent({
-            title: formData.title,
-            category: formData.category,
-            organiser: {
-              name: formData.organiserName,
-              avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=Host',
-            },
-            startTime: startStr,
-            endTime: endStr,
-            location: formData.location,
-            capacity: formData.capacity,
-            posterUrl: formData.posterUrl,
-            description: formData.description,
-          })
-          ElMessage.success('Event published! It is now live on the Student Portal.')
+          ElMessage.success('Event published live successfully!')
         }
-
-        isSubmitting.value = false
         router.push('/organiser/dashboard')
-      }, 500)
+      } else {
+        ElMessage.error(res.message || 'Failed to save event.')
+      }
     } else {
       ElMessage.error('Please check required fields in the form.')
     }

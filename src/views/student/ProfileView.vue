@@ -1,286 +1,323 @@
 <template>
   <StudentLayout>
     <div class="profile-page">
-    <div class="profile-header-banner">
-      <div class="banner-overlay"></div>
-      <div class="banner-content">
-        <div class="user-avatar-section">
-          <el-avatar :size="96" :src="profileForm.avatar" class="profile-avatar">
-            <el-icon :size="48"><UserFilled /></el-icon>
-          </el-avatar>
-          <button class="change-avatar-btn" title="Change Avatar" @click="showAvatarPicker = true">
-            <el-icon><Camera /></el-icon>
-          </button>
-        </div>
+      <!-- Hidden file input for local avatar upload -->
+      <input
+        ref="fileInputRef"
+        type="file"
+        accept="image/*"
+        style="display: none"
+        @change="handleFileUpload"
+      />
 
-        <div class="user-identity">
-          <div class="name-row">
-            <h2>{{ profileForm.name }}</h2>
-            <el-tag type="success" effect="dark" round class="role-badge">
-              {{ profileForm.role === 'STUDENT' ? 'Student' : profileForm.role }}
-            </el-tag>
+      <div class="profile-header-banner">
+        <div class="banner-overlay" />
+        <div class="banner-content">
+          <div class="user-avatar-section">
+            <el-avatar v-if="profileForm.avatar" :size="96" :src="profileForm.avatar" class="profile-avatar" />
+            <el-avatar v-else :size="96" class="profile-avatar default-blue-avatar">
+              <el-icon :size="48"><UserFilled /></el-icon>
+            </el-avatar>
+            <button class="change-avatar-btn" title="Change Avatar" @click="showAvatarPicker = true">
+              <el-icon><Camera /></el-icon>
+            </button>
           </div>
-          <p class="user-subtext">
-            <span class="user-id">ID: {{ profileForm.studentId || 'STU-2026-8942' }}</span> • 
-            <span class="user-email">{{ profileForm.email }}</span>
-          </p>
-          <p class="user-bio-preview">{{ profileForm.bio || 'No bio provided yet.' }}</p>
-        </div>
 
-        <div class="profile-actions">
-          <el-button type="primary" size="large" :loading="isSaving" @click="saveProfile">
-            <el-icon class="el-icon--left"><Check /></el-icon> Save Changes
-          </el-button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Quick Stats Cards Bar -->
-    <div class="stats-overview">
-      <div class="stat-card">
-        <div class="stat-icon bg-blue"><el-icon><Ticket /></el-icon></div>
-        <div class="stat-info">
-          <span class="stat-value">{{ eventStore.userRegisteredCount }}</span>
-          <span class="stat-label">Registered Events</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon bg-purple"><el-icon><Star /></el-icon></div>
-        <div class="stat-info">
-          <span class="stat-value">{{ eventStore.userBookmarkedCount }}</span>
-          <span class="stat-label">Saved Events</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon bg-orange"><el-icon><Collection /></el-icon></div>
-        <div class="stat-info">
-          <span class="stat-value">{{ profileForm.clubs.length }}</span>
-          <span class="stat-label">Joined Clubs</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Profile Edit Forms Grid -->
-    <div class="profile-grid">
-      <!-- Section 1: Academic & Personal Information -->
-      <el-card class="profile-card" shadow="hover">
-        <template #header>
-          <div class="card-title">
-            <el-icon><User /></el-icon> Basic & Academic Info (基本与学术信息)
+          <div class="user-identity">
+            <div class="name-row">
+              <h2>{{ profileForm.name }}</h2>
+              <el-tag type="success" effect="dark" round class="role-badge">
+                {{ profileForm.role === 'STUDENT' ? 'Student' : profileForm.role }}
+              </el-tag>
+            </div>
+            <p class="user-subtext">
+              <span class="user-id">ID: {{ profileForm.studentId || 'STU-2026-8942' }}</span> • 
+              <span class="user-email">{{ profileForm.email }}</span>
+            </p>
+            <p class="user-bio-preview" :class="{ 'empty-bio': !profileForm.bio }">
+              {{ profileForm.bio || 'No bio added yet.' }}
+            </p>
           </div>
-        </template>
 
-        <el-form label-position="top" class="profile-form">
-          <el-form-item label="Full Name (姓名)">
-            <el-input v-model="profileForm.name" placeholder="Full name" />
-          </el-form-item>
+          <div class="profile-actions">
+            <el-button type="primary" size="large" :loading="isSaving" @click="saveProfile">
+              <el-icon class="el-icon--left"><Check /></el-icon> Save Changes
+            </el-button>
+          </div>
+        </div>
+      </div>
 
-          <el-form-item label="Campus Email (校园邮箱)">
-            <el-input v-model="profileForm.email" disabled placeholder="email@campus.edu">
-              <template #append>Verified</template>
-            </el-input>
-          </el-form-item>
+      <!-- Quick Stats Cards Bar -->
+      <div class="stats-overview">
+        <div class="stat-card">
+          <div class="stat-icon bg-blue"><el-icon><Ticket /></el-icon></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ eventStore.userRegisteredCount }}</span>
+            <span class="stat-label">Registered Events</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-purple"><el-icon><Star /></el-icon></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ eventStore.userBookmarkedCount }}</span>
+            <span class="stat-label">Saved Events</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon bg-orange"><el-icon><Collection /></el-icon></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ profileForm.clubs.length }}</span>
+            <span class="stat-label">Joined Clubs</span>
+          </div>
+        </div>
+      </div>
 
-          <div class="form-row">
-            <el-form-item label="Major (专业)" class="half-width">
-              <el-input v-model="profileForm.major" placeholder="e.g. Computer Science" />
+      <!-- Profile Edit Forms Grid -->
+      <div class="profile-grid">
+        <!-- Section 1: Academic & Personal Information -->
+        <el-card class="profile-card" shadow="hover">
+          <template #header>
+            <div class="card-title">
+              <el-icon><User /></el-icon> Basic & Academic Info
+            </div>
+          </template>
+
+          <el-form label-position="top" class="profile-form">
+            <el-form-item label="Full Name">
+              <el-input v-model="profileForm.name" placeholder="Full name" />
             </el-form-item>
 
-            <el-form-item label="Grade (年级)" class="half-width">
-              <el-select v-model="profileForm.grade" placeholder="Select grade" class="full-width">
-                <el-option label="Freshman (Year 1)" value="Freshman (Year 1)" />
-                <el-option label="Sophomore (Year 2)" value="Sophomore (Year 2)" />
-                <el-option label="Junior (Year 3)" value="Junior (Year 3)" />
-                <el-option label="Senior (Year 4)" value="Senior (Year 4)" />
-                <el-option label="Postgraduate (Master/PhD)" value="Postgraduate" />
+            <el-form-item label="Campus Email">
+              <el-input v-model="profileForm.email" disabled placeholder="email@campus.edu" />
+            </el-form-item>
+
+            <div class="form-row">
+              <el-form-item label="Major" class="half-width">
+                <el-select v-model="profileForm.major" placeholder="Select major" class="full-width">
+                  <el-option label="Computer Science & Software" value="Computer Science & Software" />
+                  <el-option label="Data Science & AI" value="Data Science & AI" />
+                  <el-option label="Business & Finance" value="Business & Finance" />
+                  <el-option label="Electrical & Electronic Eng" value="Electrical & Electronic Eng" />
+                  <el-option label="Mechanical Engineering" value="Mechanical Engineering" />
+                  <el-option label="Design, Media & Digital Arts" value="Design, Media & Digital Arts" />
+                  <el-option label="Applied Math & Physics" value="Applied Math & Physics" />
+                  <el-option label="Biomedical Science" value="Biomedical Science" />
+                  <el-option label="Other Majors" value="Other Majors" />
+                </el-select>
+              </el-form-item>
+
+              <el-form-item label="Grade" class="half-width">
+                <el-select v-model="profileForm.grade" placeholder="Select grade" class="full-width">
+                  <el-option label="Freshman (Year 1)" value="Freshman (Year 1)" />
+                  <el-option label="Sophomore (Year 2)" value="Sophomore (Year 2)" />
+                  <el-option label="Junior (Year 3)" value="Junior (Year 3)" />
+                  <el-option label="Senior (Year 4)" value="Senior (Year 4)" />
+                  <el-option label="Postgraduate (Master/PhD)" value="Postgraduate" />
+                </el-select>
+              </el-form-item>
+            </div>
+
+            <el-form-item label="Personal Bio">
+              <el-input 
+                v-model="profileForm.bio" 
+                type="textarea" 
+                :rows="3" 
+                placeholder="Tell others about your research interests, projects, or hobbies..." 
+              />
+            </el-form-item>
+          </el-form>
+        </el-card>
+
+        <!-- Section 2: Campus Life & Interests -->
+        <el-card class="profile-card" shadow="hover">
+          <template #header>
+            <div class="card-title">
+              <el-icon><Compass /></el-icon> Campus Life & Schedule
+            </div>
+          </template>
+
+          <el-form label-position="top" class="profile-form">
+            <!-- Interests -->
+            <el-form-item label="Interests & Topics">
+              <div class="tags-container">
+                <el-tag
+                  v-for="interest in profileForm.interests"
+                  :key="interest"
+                  closable
+                  type="primary"
+                  effect="light"
+                  class="custom-tag"
+                  @close="removeInterest(interest)"
+                >
+                  {{ interest }}
+                </el-tag>
+                <div class="add-tag-box">
+                  <el-input
+                    v-if="inputInterestVisible"
+                    ref="interestInputRef"
+                    v-model="inputInterestValue"
+                    size="small"
+                    class="tag-input"
+                    @keyup.enter="handleInterestInputConfirm"
+                    @blur="handleInterestInputConfirm"
+                  />
+                  <el-button v-else size="small" type="primary" plain @click="showInterestInput">
+                    + Add Interest
+                  </el-button>
+                </div>
+              </div>
+              <div class="suggested-tags">
+                <span class="suggest-label">Quick Suggestions:</span>
+                <span 
+                  v-for="sug in suggestedInterests" 
+                  :key="sug" 
+                  class="suggest-chip" 
+                  @click="addInterest(sug)"
+                >
+                  + {{ sug }}
+                </span>
+              </div>
+            </el-form-item>
+
+            <!-- Clubs & Organizations -->
+            <el-form-item label="Clubs & Organizations">
+              <div class="tags-container">
+                <el-tag
+                  v-for="club in profileForm.clubs"
+                  :key="club"
+                  closable
+                  type="success"
+                  effect="light"
+                  class="custom-tag"
+                  @close="removeClub(club)"
+                >
+                  {{ club }}
+                </el-tag>
+                <div class="add-tag-box">
+                  <el-input
+                    v-if="inputClubVisible"
+                    ref="clubInputRef"
+                    v-model="inputClubValue"
+                    size="small"
+                    class="tag-input"
+                    @keyup.enter="handleClubInputConfirm"
+                    @blur="handleClubInputConfirm"
+                  />
+                  <el-button v-else size="small" type="success" plain @click="showClubInput">
+                    + Join Club
+                  </el-button>
+                </div>
+              </div>
+            </el-form-item>
+
+            <!-- Available Time Slots -->
+            <el-form-item label="Available Time Slots">
+              <el-select
+                v-model="profileForm.availableTime"
+                multiple
+                collapse-tags
+                collapse-tags-tooltip
+                placeholder="Select your free availability slots"
+                class="full-width"
+              >
+                <el-option label="Weekday Mornings (8:00 - 12:00)" value="Weekday Mornings (8:00 - 12:00)" />
+                <el-option label="Weekday Afternoons (12:00 - 17:00)" value="Weekday Afternoons (12:00 - 17:00)" />
+                <el-option label="Weekday Evenings (After 17:00)" value="Weekday Evenings (After 5 PM)" />
+                <el-option label="Friday Afternoons" value="Friday Afternoons" />
+                <el-option label="Saturday All Day" value="Saturday All Day" />
+                <el-option label="Sunday Afternoons" value="Sunday Afternoons" />
               </el-select>
             </el-form-item>
-          </div>
+          </el-form>
+        </el-card>
 
-          <el-form-item label="Personal Bio (个人简介)">
-            <el-input 
-              v-model="profileForm.bio" 
-              type="textarea" 
-              :rows="3" 
-              placeholder="Tell others about your research interests, projects, or hobbies..." 
-            />
-          </el-form-item>
-        </el-form>
-      </el-card>
+        <!-- Section 3: Notification Preferences -->
+        <el-card class="profile-card full-span" shadow="hover">
+          <template #header>
+            <div class="card-title">
+              <el-icon><Bell /></el-icon> Notification Preferences
+            </div>
+          </template>
 
-      <!-- Section 2: Campus Life & Interests (社团, 兴趣, 空闲时间) -->
-      <el-card class="profile-card" shadow="hover">
-        <template #header>
-          <div class="card-title">
-            <el-icon><Compass /></el-icon> Campus Life & Schedule (社团、兴趣与空闲时间)
-          </div>
-        </template>
-
-        <el-form label-position="top" class="profile-form">
-          <!-- 兴趣 (Interests) -->
-          <el-form-item label="Interests & Topics (个人兴趣)">
-            <div class="tags-container">
-              <el-tag
-                v-for="interest in profileForm.interests"
-                :key="interest"
-                closable
-                type="primary"
-                effect="light"
-                class="custom-tag"
-                @close="removeInterest(interest)"
-              >
-                {{ interest }}
-              </el-tag>
-              <div class="add-tag-box">
-                <el-input
-                  v-if="inputInterestVisible"
-                  ref="interestInputRef"
-                  v-model="inputInterestValue"
-                  size="small"
-                  class="tag-input"
-                  @keyup.enter="handleInterestInputConfirm"
-                  @blur="handleInterestInputConfirm"
-                />
-                <el-button v-else size="small" type="primary" plain @click="showInterestInput">
-                  + Add Interest
-                </el-button>
+          <div class="notifications-settings-grid">
+            <div class="setting-item">
+              <div class="setting-text">
+                <h4>Email Event Alerts</h4>
+                <p>Receive event registration passes, tickets, and status confirmations via email.</p>
               </div>
+              <el-switch v-model="profileForm.notificationPreferences.emailAlerts" size="large" />
             </div>
-            <div class="suggested-tags">
-              <span class="suggest-label">Quick Suggestions:</span>
-              <span 
-                v-for="sug in suggestedInterests" 
-                :key="sug" 
-                class="suggest-chip" 
-                @click="addInterest(sug)"
-              >
-                + {{ sug }}
-              </span>
-            </div>
-          </el-form-item>
 
-          <!-- 所属社团 (Clubs & Organizations) -->
-          <el-form-item label="Clubs & Organizations (所属社团)">
-            <div class="tags-container">
-              <el-tag
-                v-for="club in profileForm.clubs"
-                :key="club"
-                closable
-                type="success"
-                effect="light"
-                class="custom-tag"
-                @close="removeClub(club)"
-              >
-                {{ club }}
-              </el-tag>
-              <div class="add-tag-box">
-                <el-input
-                  v-if="inputClubVisible"
-                  ref="clubInputRef"
-                  v-model="inputClubValue"
-                  size="small"
-                  class="tag-input"
-                  @keyup.enter="handleClubInputConfirm"
-                  @blur="handleClubInputConfirm"
-                />
-                <el-button v-else size="small" type="success" plain @click="showClubInput">
-                  + Join Club
-                </el-button>
+            <div class="setting-item">
+              <div class="setting-text">
+                <h4>In-App Push Notifications</h4>
+                <p>Receive real-time popups for sudden venue changes, schedule updates, or urgent notices.</p>
               </div>
+              <el-switch v-model="profileForm.notificationPreferences.pushNotifications" size="large" />
             </div>
-          </el-form-item>
 
-          <!-- 空闲时间 (Available Time) -->
-          <el-form-item label="Available Time Slots (空闲时间)">
-            <el-select
-              v-model="profileForm.availableTime"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              placeholder="Select your free availability slots"
-              class="full-width"
-            >
-              <el-option label="Weekday Mornings (8:00 - 12:00)" value="Weekday Mornings (8:00 - 12:00)" />
-              <el-option label="Weekday Afternoons (12:00 - 17:00)" value="Weekday Afternoons (12:00 - 17:00)" />
-              <el-option label="Weekday Evenings (After 17:00)" value="Weekday Evenings (After 5 PM)" />
-              <el-option label="Friday Afternoons" value="Friday Afternoons" />
-              <el-option label="Saturday All Day" value="Saturday All Day" />
-              <el-option label="Sunday Afternoons" value="Sunday Afternoons" />
-            </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
-
-      <!-- Section 3: Notification Preferences (通知偏好设置) -->
-      <el-card class="profile-card full-span" shadow="hover">
-        <template #header>
-          <div class="card-title">
-            <el-icon><Bell /></el-icon> Notification Preferences (通知偏好设置)
-          </div>
-        </template>
-
-        <div class="notifications-settings-grid">
-          <div class="setting-item">
-            <div class="setting-text">
-              <h4>Email Event Alerts (邮件通知)</h4>
-              <p>Receive event registration passes, tickets, and status confirmations via email.</p>
+            <div class="setting-item">
+              <div class="setting-text">
+                <h4>Event Reminders</h4>
+                <p>Get automated reminders 24 hours and 1 hour before registered events start.</p>
+              </div>
+              <el-switch v-model="profileForm.notificationPreferences.eventReminders" size="large" />
             </div>
-            <el-switch v-model="profileForm.notificationPreferences.emailAlerts" size="large" />
-          </div>
 
-          <div class="setting-item">
-            <div class="setting-text">
-              <h4>In-App Push Notifications (应用内推送)</h4>
-              <p>Receive real-time popups for sudden venue changes, schedule updates, or urgent notices.</p>
+            <div class="setting-item">
+              <div class="setting-text">
+                <h4>Waitlist Status Updates</h4>
+                <p>Instant notification when a spot opens up for waitlisted events.</p>
+              </div>
+              <el-switch v-model="profileForm.notificationPreferences.waitlistUpdates" size="large" />
             </div>
-            <el-switch v-model="profileForm.notificationPreferences.pushNotifications" size="large" />
-          </div>
 
-          <div class="setting-item">
-            <div class="setting-text">
-              <h4>Event Reminders (活动提醒)</h4>
-              <p>Get automated reminders 24 hours and 1 hour before registered events start.</p>
+            <div class="setting-item">
+              <div class="setting-text">
+                <h4>Weekly Campus Digest</h4>
+                <p>Receive a curated roundup of top recommended events tailored to your interests.</p>
+              </div>
+              <el-switch v-model="profileForm.notificationPreferences.weeklyDigest" size="large" />
             </div>
-            <el-switch v-model="profileForm.notificationPreferences.eventReminders" size="large" />
           </div>
-
-          <div class="setting-item">
-            <div class="setting-text">
-              <h4>Waitlist Status Updates (候补名额通知)</h4>
-              <p>Instant notification when a spot opens up for waitlisted events.</p>
-            </div>
-            <el-switch v-model="profileForm.notificationPreferences.waitlistUpdates" size="large" />
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-text">
-              <h4>Weekly Campus Digest (每周精选推送)</h4>
-              <p>Receive a curated roundup of top recommended events tailored to your interests.</p>
-            </div>
-            <el-switch v-model="profileForm.notificationPreferences.weeklyDigest" size="large" />
-          </div>
-        </div>
-      </el-card>
-    </div>
-
-    <!-- Avatar Picker Dialog -->
-    <el-dialog v-model="showAvatarPicker" title="Choose Avatar" width="440px">
-      <div class="avatar-options-grid">
-        <img 
-          v-for="(img, idx) in presetAvatars" 
-          :key="idx" 
-          :src="img" 
-          :class="{ selected: profileForm.avatar === img }"
-          class="avatar-option-img"
-          @click="selectAvatar(img)" 
-        />
+        </el-card>
       </div>
-      <template #footer>
-        <el-button @click="showAvatarPicker = false">Cancel</el-button>
-        <el-button type="primary" @click="showAvatarPicker = false">Confirm</el-button>
-      </template>
-    </el-dialog>
-  </div>
+
+      <!-- Avatar Management Dialog -->
+      <el-dialog v-model="showAvatarPicker" title="Avatar Settings" width="420px">
+        <div class="avatar-dialog-body">
+          <div class="current-avatar-preview">
+            <el-avatar v-if="profileForm.avatar" :size="80" :src="profileForm.avatar" class="preview-img" />
+            <el-avatar v-else :size="80" class="preview-img default-blue-avatar">
+              <el-icon :size="40"><UserFilled /></el-icon>
+            </el-avatar>
+            <span class="preview-label">{{ profileForm.avatar ? 'Custom Avatar Loaded' : 'Default Blue Avatar Active' }}</span>
+          </div>
+
+          <div class="avatar-actions-stack">
+            <el-button type="primary" size="large" class="stack-btn" @click="triggerFileInput">
+              <el-icon class="el-icon--left"><Upload /></el-icon> Upload Image from Computer
+            </el-button>
+
+            <el-button
+              v-if="profileForm.avatar"
+              type="info"
+              plain
+              size="large"
+              class="stack-btn"
+              @click="resetToDefaultAvatar"
+            >
+              <el-icon class="el-icon--left"><RefreshRight /></el-icon> Reset to Default Blue Avatar
+            </el-button>
+          </div>
+
+          <div class="upload-tip">Supports JPG, PNG, GIF files up to 5MB.</div>
+        </div>
+        <template #footer>
+          <el-button @click="showAvatarPicker = false">Close</el-button>
+        </template>
+      </el-dialog>
+    </div>
   </StudentLayout>
 </template>
 
@@ -296,7 +333,9 @@ import {
   Star, 
   Collection, 
   Compass, 
-  Bell 
+  Bell,
+  Upload,
+  RefreshRight
 } from '@element-plus/icons-vue'
 import { ElMessage, type InputInstance } from 'element-plus'
 import { useAuthStore } from '@/stores/authStore'
@@ -307,6 +346,7 @@ const eventStore = useEventStore()
 
 const isSaving = ref(false)
 const showAvatarPicker = ref(false)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 // Local profile state initialized from authStore
 const profileForm = reactive({
@@ -314,10 +354,10 @@ const profileForm = reactive({
   email: authStore.currentUser?.email || 'alex.johnson@campus.edu',
   role: authStore.currentUser?.role || 'STUDENT',
   studentId: authStore.currentUser?.studentId || 'STU-2026-8942',
-  avatar: authStore.currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
-  major: authStore.currentUser?.major || 'Computer Science & Software Engineering',
+  avatar: authStore.currentUser?.avatar || '',
+  major: authStore.currentUser?.major || 'Computer Science & Software',
   grade: authStore.currentUser?.grade || 'Senior (Year 4)',
-  bio: authStore.currentUser?.bio || 'Passionate about full-stack web applications, AI research, and campus event organizing.',
+  bio: authStore.currentUser?.bio || '',
   interests: [...(authStore.currentUser?.interests || ['AI & Machine Learning', 'Hackathons', 'Robotics & Hardware'])],
   clubs: [...(authStore.currentUser?.clubs || ['Google Developer Student Club', 'ACM Student Chapter'])],
   availableTime: [...(authStore.currentUser?.availableTime || ['Weekday Evenings (After 5 PM)', 'Saturday All Day'])],
@@ -329,6 +369,39 @@ const profileForm = reactive({
     weeklyDigest: authStore.currentUser?.notificationPreferences?.weeklyDigest ?? false,
   }
 })
+
+// Trigger local file selection dialog
+function triggerFileInput() {
+  fileInputRef.value?.click()
+}
+
+// Reset avatar back to default blue icon
+function resetToDefaultAvatar() {
+  profileForm.avatar = ''
+  ElMessage.info('Avatar reset to default blue icon. Click "Save Changes" to apply.')
+  showAvatarPicker.value = false
+}
+
+// Handle local avatar file upload
+function handleFileUpload(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    const file = target.files[0]
+    if (file.size > 5 * 1024 * 1024) {
+      ElMessage.warning('Image size should be less than 5MB.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        profileForm.avatar = e.target.result as string
+        ElMessage.success('Local avatar photo loaded! Save changes to update.')
+        showAvatarPicker.value = false
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+}
 
 // Interest tag input state
 const inputInterestVisible = ref(false)
@@ -468,6 +541,11 @@ function saveProfile() {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
+:deep(.default-blue-avatar) {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  color: #ffffff !important;
+}
+
 .change-avatar-btn {
   position: absolute;
   bottom: 0;
@@ -524,6 +602,67 @@ function saveProfile() {
   font-size: 0.92rem;
   color: #e0e7ff;
   line-height: 1.4;
+}
+
+.user-bio-preview.empty-bio {
+  color: #a5b4fc;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.local-upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.avatar-dialog-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.current-avatar-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-label {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.avatar-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.stack-btn {
+  width: 100% !important;
+  margin-left: 0 !important;
+  height: 44px !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.upload-tip {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  text-align: center;
 }
 
 /* Stats Overview */
