@@ -55,12 +55,12 @@
         <!-- Admin Profile & Logout Dropdown -->
         <el-dropdown trigger="click">
           <div class="profile-avatar-wrapper">
-            <div class="default-avatar">
+            <el-avatar v-if="authStore.currentUser?.avatar" :size="34" :src="authStore.currentUser.avatar" />
+            <div v-else class="default-avatar">
               <el-icon><UserFilled /></el-icon>
             </div>
             <div class="user-meta">
-              <span class="user-name">Chief Admin</span>
-              <span class="user-role">Super Administrator</span>
+              <span class="user-name">{{ authStore.currentUser?.name || 'Chief Admin' }}</span>
             </div>
             <el-icon><ArrowDown /></el-icon>
           </div>

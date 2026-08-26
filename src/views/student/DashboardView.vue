@@ -216,7 +216,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import StudentLayout from '@/layouts/StudentLayout.vue'
 import EventCard from '@/components/EventCard.vue'
 import { useEventStore } from '@/stores/eventStore'
@@ -225,6 +225,13 @@ import { Refresh, Calendar, Location, User } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const eventStore = useEventStore()
+
+onMounted(() => {
+  eventStore.searchQuery = ''
+  eventStore.selectedCategory = 'All'
+  eventStore.activeTab = 'all'
+  eventStore.fetchEventsFromSupabase()
+})
 
 // Local Controls State
 const sortBy = ref<'upcoming' | 'popular' | 'seats'>('upcoming')
@@ -307,7 +314,7 @@ function confirmRegistration() {
 
 // Handle Cancel Registration Confirmation
 function handleCancelRegistration(eventId: string) {
-  const event = eventStore.events.find((e) => e.id === eventId)
+  const event = eventStore.events.find((e: EventItem) => e.id === eventId)
   if (!event) return
 
   const actionText = event.isWaitlisted ? 'leave the waitlist for' : 'cancel registration for'

@@ -28,21 +28,30 @@
       </div>
     </div>
 
-    <!-- Filter Tabs -->
-    <el-tabs v-model="activeStatusTab" class="status-tabs">
-      <el-tab-pane label="All Events" name="all" />
-      <el-tab-pane name="pending">
-        <template #label>
-          <div class="tab-label-with-badge">
-            <span>Pending Approvals</span>
-            <el-badge v-if="pendingCount > 0" :value="pendingCount" type="warning" class="tab-badge" />
-          </div>
-        </template>
-      </el-tab-pane>
-      <el-tab-pane label="Approved & Active" name="approved" />
-      <el-tab-pane label="Rejected" name="rejected" />
-      <el-tab-pane label="Disabled / Taken Down" name="disabled" />
-    </el-tabs>
+    <!-- Filter Control Card with Segmented Status Tabs (Matches Student Dashboard style) -->
+    <div class="filter-card">
+      <el-radio-group v-model="activeStatusTab" size="default" class="view-radio-tabs">
+        <el-radio-button value="all">All Events ({{ allCount }})</el-radio-button>
+        <el-radio-button value="published">Published ({{ publishedCount }})</el-radio-button>
+        <el-radio-button value="pending">Pending Review ({{ pendingCount }})</el-radio-button>
+        <el-radio-button value="draft">Draft / Upcoming ({{ draftCount }})</el-radio-button>
+        <el-radio-button value="rejected">Rejected ({{ rejectedCount }})</el-radio-button>
+      </el-radio-group>
+
+      <div class="filter-controls-right">
+        <el-select v-model="selectedCategory" placeholder="All Categories" clearable style="width: 150px">
+          <el-option label="Academic" value="Academic" />
+          <el-option label="Competition" value="Competition" />
+          <el-option label="Sports" value="Sports" />
+          <el-option label="Culture" value="Culture" />
+        </el-select>
+
+        <el-select v-model="selectedSort" placeholder="Sort By" style="width: 150px">
+          <el-option label="Upcoming First" value="upcoming" />
+          <el-option label="Latest Submitted" value="latest" />
+        </el-select>
+      </div>
+    </div>
 
     <!-- Table List -->
     <div class="table-container">
@@ -184,6 +193,7 @@ import { Search, Location, View } from '@element-plus/icons-vue'
 
 const searchQuery = ref('')
 const selectedCategory = ref('')
+const selectedSort = ref('upcoming')
 const activeStatusTab = ref('all')
 const loading = ref(false)
 const drawerVisible = ref(false)
@@ -251,15 +261,40 @@ const eventsList = ref([
     budget: 5000,
     description: 'Meet representatives from 50+ tech companies and top enterprises looking for interns and graduates.',
   },
+  {
+    id: 5,
+    title: 'Robotics Workshop Proposal Draft',
+    poster: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&auto=format&fit=crop&q=80',
+    category: 'Academic',
+    organiser: 'Robotics Club',
+    contactEmail: 'robotics@campus.edu',
+    location: 'Engineering Lab B',
+    date: '2026-11-10 14:00',
+    submittedDate: '2026-08-22',
+    status: 'draft',
+    capacity: 60,
+    budget: 400,
+    description: 'Hands-on introduction to ROS and microcontroller programming.',
+  }
 ])
 
+const allCount = computed(() => eventsList.value.length)
+const publishedCount = computed(() => eventsList.value.filter((e) => e.status === 'approved' || e.status === 'published').length)
 const pendingCount = computed(() => eventsList.value.filter((e) => e.status === 'pending').length)
+const draftCount = computed(() => eventsList.value.filter((e) => e.status === 'draft').length)
+const rejectedCount = computed(() => eventsList.value.filter((e) => e.status === 'rejected' || e.status === 'disabled').length)
 
 const filteredEvents = computed(() => {
   return eventsList.value.filter((item) => {
     // Status Filter
-    if (activeStatusTab.value !== 'all' && item.status !== activeStatusTab.value) {
-      return false
+    if (activeStatusTab.value === 'published') {
+      if (item.status !== 'approved' && item.status !== 'published') return false
+    } else if (activeStatusTab.value === 'draft') {
+      if (item.status !== 'draft') return false
+    } else if (activeStatusTab.value === 'rejected') {
+      if (item.status !== 'rejected' && item.status !== 'disabled') return false
+    } else if (activeStatusTab.value === 'pending') {
+      if (item.status !== 'pending') return false
     }
     // Category Filter
     if (selectedCategory.value && item.category !== selectedCategory.value) {
@@ -364,23 +399,66 @@ function handleRestore(row: any) {
   width: 280px;
 }
 
-.status-tabs {
-  margin-top: 8px;
+.filter-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-:deep(.el-tabs__item) {
-  color: #64748b !important;
+.status-tab-group {
+  display: inline-flex;
+  background-color: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.88rem;
   font-weight: 600;
-  font-size: 0.95rem;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-:deep(.el-tabs__item.is-active) {
-  color: #ef4444 !important;
+.tab-btn:hover {
+  color: #1e293b;
+}
+
+.tab-btn.active {
+  background-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
   font-weight: 700;
 }
 
-:deep(.el-tabs__active-bar) {
-  background-color: #ef4444 !important;
+.badge-count {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.filter-controls-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
 }
 
 .table-container {

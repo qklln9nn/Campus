@@ -90,10 +90,11 @@
         <!-- User Profile Dropdown -->
         <el-dropdown trigger="click">
           <div class="profile-avatar-wrapper">
-            <div class="default-avatar-student">
+            <el-avatar v-if="authStore.currentUser?.avatar" :size="36" :src="authStore.currentUser.avatar" />
+            <div v-else class="default-avatar-student">
               <el-icon><UserFilled /></el-icon>
             </div>
-            <span class="user-name">{{ authStore.currentUser?.name || 'Alex Johnson' }}</span>
+            <span class="user-name">{{ authStore.currentUser?.name || 'Campus User' }}</span>
             <el-icon><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
@@ -312,11 +313,17 @@ const activeMenuIndex = computed(() => {
 
 function setTab(tab: 'all' | 'registered' | 'waitlisted' | 'saved') {
   eventStore.activeTab = tab
+  if (router.currentRoute.value.path !== '/dashboard') {
+    router.push('/dashboard')
+  }
 }
 
 function setCategory(cat: CategoryType) {
   eventStore.selectedCategory = cat
   eventStore.activeTab = 'all'
+  if (router.currentRoute.value.path !== '/dashboard') {
+    router.push('/dashboard')
+  }
 }
 </script>
 

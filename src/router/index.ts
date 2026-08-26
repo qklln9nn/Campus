@@ -98,6 +98,11 @@ router.beforeEach((to, _from, next) => {
   if (authStore.isAuthenticated) {
     const role = authStore.userRole
 
+    // Organiser Portal Guidance: Auto-redirect Organisers to Organiser Console
+    if (to.path === '/dashboard' && role === 'ORGANISER') {
+      return next({ path: '/organiser/dashboard' })
+    }
+
     // Organiser Routes Protection: Prevent Student Access
     if ((to.path.startsWith('/organiser') || to.path === '/create') && role === 'STUDENT') {
       ElMessage.error('Access Denied: Student accounts cannot access the Organiser Console.')

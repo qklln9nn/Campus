@@ -319,12 +319,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, type Component } from 'vue'
+import { ref, computed, onMounted, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import EventCard from '@/components/EventCard.vue'
 import { useEventStore } from '@/stores/eventStore'
 import { useAuthStore } from '@/stores/authStore'
 import type { EventItem, CategoryType } from '@/types/event'
+
+onMounted(() => {
+  eventStore.searchQuery = ''
+  eventStore.selectedCategory = 'All'
+  eventStore.activeTab = 'all'
+  eventStore.fetchEventsFromSupabase()
+})
 import {
   Calendar,
   Location,
@@ -363,7 +370,7 @@ const categories: { name: CategoryType; icon: Component; bg: string; color: stri
 
 // Total Registrations Count Across All Events
 const totalRegistrations = computed(() => {
-  return eventStore.events.reduce((sum, e) => sum + e.registeredCount, 0)
+  return eventStore.events.reduce((sum: number, e: EventItem) => sum + e.registeredCount, 0)
 })
 
 // Top Featured Events (Strictly 3 Events)
@@ -373,7 +380,7 @@ const featuredEvents = computed(() => {
 
 // Category Events Count Helper
 function getCategoryCount(catName: CategoryType) {
-  return eventStore.events.filter(e => e.category === catName).length
+  return eventStore.events.filter((e: EventItem) => e.category === catName).length
 }
 
 // Smart Navigation: Check Login State before View All or Category Filter
@@ -454,7 +461,7 @@ function confirmRegistration() {
 }
 
 function handleCancelRegistration(eventId: string) {
-  const event = eventStore.events.find(e => e.id === eventId)
+  const event = eventStore.events.find((e: EventItem) => e.id === eventId)
   if (!event) return
 
   ElMessageBox.confirm(

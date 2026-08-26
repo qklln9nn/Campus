@@ -4,7 +4,7 @@
     <header class="top-navbar">
       <div class="navbar-left">
         <!-- Sidebar Collapse Toggle Button -->
-        <button class="icon-toggle-btn" @click="isSidebarCollapsed = !isSidebarCollapsed">
+        <button class="icon-toggle-btn" @click="isSidebarCollapsed = !isSidebarCollapsed" title="Toggle Sidebar">
           <el-icon><Expand v-if="isSidebarCollapsed" /><Fold v-else /></el-icon>
         </button>
 
@@ -15,40 +15,53 @@
           </div>
           <span class="brand-title">Campus <span class="highlight">EventHub</span></span>
         </router-link>
+      </div>
+
+      <!-- Center Search Bar (Matches Student Layout Format) -->
+      <div class="navbar-center">
+        <el-input
+          v-model="eventStore.searchQuery"
+          placeholder="Search events..."
+          clearable
+          class="global-search-input"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+      </div>
+
+      <!-- Right Actions: Create Event Plus Icon, Portal Tag, User Profile -->
+      <div class="navbar-right">
+        <!-- Plus Icon Button to Create Event -->
+        <button
+          class="nav-icon-btn create-plus-btn"
+          title="Create New Event"
+          @click="router.push('/create')"
+        >
+          <el-icon><Plus /></el-icon>
+        </button>
 
         <!-- Organiser Portal Tag -->
         <el-tag type="warning" effect="dark" round class="portal-tag">
           Organiser Console
         </el-tag>
-      </div>
 
-      <!-- Right Actions: Create Event, User Profile -->
-      <div class="navbar-right">
-        <!-- Quick Create Event Button -->
-        <router-link to="/create">
-          <el-button type="primary" size="default" class="create-btn">
-            <el-icon><Plus /></el-icon> Publish New Event
-          </el-button>
-        </router-link>
-
-        <!-- Organiser User Profile -->
+        <!-- Organiser User Profile Dropdown -->
         <el-dropdown trigger="click">
           <div class="profile-avatar-wrapper">
-            <div class="default-avatar">
+            <el-avatar v-if="authStore.currentUser?.avatar" :size="36" :src="authStore.currentUser.avatar" />
+            <div v-else class="default-avatar">
               <el-icon><UserFilled /></el-icon>
             </div>
             <div class="user-meta">
-              <span class="user-name">{{ authStore.currentUser?.name || 'Dr. Sarah Jenkins' }}</span>
-              <span class="user-role">Host & Administrator</span>
+              <span class="user-name">{{ authStore.currentUser?.name || 'Organiser Host' }}</span>
             </div>
             <el-icon><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item @click="router.push('/profile')">
-                <el-icon><User /></el-icon> Profile & Account
-              </el-dropdown-item>
-              <el-dropdown-item divided style="color: #f56c6c;" @click="handleLogout">
+              <el-dropdown-item style="color: #f56c6c;" @click="handleLogout">
                 <el-icon><SwitchButton /></el-icon> Log Out
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -102,6 +115,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
+import { useEventStore } from '@/stores/eventStore'
 import {
   Calendar,
   Expand,
@@ -112,11 +126,13 @@ import {
   User,
   UserFilled,
   SwitchButton,
+  Search,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const eventStore = useEventStore()
 
 function handleLogout() {
   authStore.logout()
@@ -207,16 +223,64 @@ const activeMenuIndex = computed(() => route.path)
   color: #a78bfa;
 }
 
-.portal-tag {
-  font-weight: 700;
-  margin-left: 4px;
+/* Center Search Bar (dark theme styled) */
+.navbar-center {
+  flex: 1;
+  max-width: 480px;
+  margin: 0 24px;
 }
 
-/* Navbar Right */
+.global-search-input :deep(.el-input__wrapper) {
+  border-radius: 20px;
+  background-color: #1e293b;
+  box-shadow: none !important;
+  border: 1px solid #334155;
+  transition: all 0.2s ease;
+}
+
+.global-search-input :deep(.el-input__inner) {
+  color: #f8fafc;
+}
+
+.global-search-input :deep(.el-input__wrapper.is-focus) {
+  background-color: #0f172a;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25) !important;
+}
+
+/* Navbar Right Buttons */
 .navbar-right {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.nav-icon-btn {
+  background: #1e293b;
+  border: 1px solid #334155;
+  font-size: 1.15rem;
+  color: #a78bfa;
+  cursor: pointer;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon-btn:hover {
+  background-color: #8b5cf6;
+  color: #ffffff;
+  border-color: #8b5cf6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.portal-tag {
+  font-weight: 700;
+  margin-left: 4px;
 }
 
 .create-btn {
