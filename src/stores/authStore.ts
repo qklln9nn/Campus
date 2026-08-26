@@ -31,8 +31,9 @@ export interface UserProfile {
 export const useAuthStore = defineStore('auth', () => {
   const STORAGE_KEY = 'campus_eventhub_user'
   const REGISTERED_USERS_KEY = 'campus_registered_users'
+  const REMEMBERED_EMAIL_KEY = 'campus_remembered_email'
 
-  const savedUser = localStorage.getItem(STORAGE_KEY)
+  const savedUser = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY)
   const currentUser = ref<UserProfile | null>(
     savedUser ? JSON.parse(savedUser) : null
   )
@@ -49,10 +50,16 @@ export const useAuthStore = defineStore('auth', () => {
   const userRole = computed<UserRole>(() => currentUser.value?.role || 'STUDENT')
 
   /**
-   * Real Supabase & Strict Offline Login Interceptor
+   * Real Supabase Authentication Login Method
    */
-  async function login(email: string, password?: string, fallbackRole: UserRole = 'STUDENT'): Promise<{ success: boolean; message?: string }> {
+  async function login(
+    email: string,
+    password?: string,
+    fallbackRole: UserRole = 'STUDENT',
+    rememberMe: boolean = true
+  ): Promise<{ success: boolean; message?: string }> {
     isLoading.value = true
+    const normalizedEmail = email.trim().toLowerCase()
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
     // Validate if Key is proper JWT format
@@ -60,38 +67,65 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       if (import.meta.env.VITE_SUPABASE_URL && isStandardJwt) {
-        // Race condition timeout guard (3.5 seconds)
+        // Race condition timeout guard (4.0 seconds)
         const authPromise = supabase.auth.signInWithPassword({
           email,
           password: password || '',
         })
         const timeoutPromise = new Promise<{ data: any; error: any }>((resolve) =>
-          setTimeout(() => resolve({ data: null, error: { message: 'Network request timed out. Please check your Supabase API credentials.' } }), 4000)
+          setTimeout(() => resolve({ data: null, error: { message: 'Network request timed out. Please check your network or Supabase credentials.' } }), 4000)
         )
 
         const { data: authData, error: authError } = await Promise.race([authPromise, timeoutPromise])
 
         if (authError || !authData?.user) {
+          // Clean up any stale local registration cache for this email
+          if (registeredUsers.value[normalizedEmail]) {
+            delete registeredUsers.value[normalizedEmail]
+            localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(registeredUsers.value))
+          }
           return {
             success: false,
-            message: authError?.message || 'Account not found or password incorrect. Please register first.',
+            message: authError?.message || 'Invalid login credentials. Account does not exist or has been deleted.',
           }
         }
 
-        // Fetch User Role & Profile from 'profiles' Table
+        // Fetch user profile from public.profiles table
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authData.user.id)
-          .single()
+          .maybeSingle()
 
-        const dbRole: UserRole = profile?.role ? (profile.role.toUpperCase() as UserRole) : fallbackRole
+        // Priority 1: Database profiles table role (Authoritative)
+        // Priority 2: Auth user_metadata role saved during signUp
+        // Priority 3: Form fallbackRole selected during login
+        let dbRole: UserRole = fallbackRole || 'STUDENT'
+        if (profile?.role) {
+          dbRole = profile.role.toUpperCase() as UserRole
+        } else if (authData.user.user_metadata?.role) {
+          dbRole = authData.user.user_metadata.role.toUpperCase() as UserRole
+        }
+
+        // If profile was missing or outdated, update profile table to keep in sync
+        if (!profile || profile.role?.toUpperCase() !== dbRole) {
+          await supabase.from('profiles').upsert(
+            {
+              id: authData.user.id,
+              email: authData.user.email || email,
+              full_name: authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || (email ? email.split('@')[0] : 'Campus Organiser'),
+              role: dbRole.toLowerCase(),
+            },
+            { onConflict: 'id' }
+          )
+        }
 
         currentUser.value = {
           id: authData.user.id,
-          name: profile?.name || (authData.user.email ? authData.user.email.split('@')[0] : '') || 'Campus User',
+          name: profile?.full_name || profile?.name || (authData.user.email ? authData.user.email.split('@')[0] : '') || 'Campus User',
           email: authData.user.email || email,
           role: dbRole,
+          avatar: profile?.avatar_url || profile?.avatar || '',
           studentId: profile?.student_id || '',
           major: profile?.major || '',
           grade: profile?.grade || '',
@@ -108,7 +142,17 @@ export const useAuthStore = defineStore('auth', () => {
           bio: profile?.bio || '',
         }
         isAuthenticated.value = true
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
+
+        // Handle Remember Me persistent storage contract
+        if (rememberMe) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
+          localStorage.setItem(REMEMBERED_EMAIL_KEY, email)
+        } else {
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
+          localStorage.removeItem(STORAGE_KEY)
+          localStorage.removeItem(REMEMBERED_EMAIL_KEY)
+        }
+
         return { success: true }
       } else if (anonKey && !isStandardJwt) {
         return {
@@ -116,27 +160,20 @@ export const useAuthStore = defineStore('auth', () => {
           message: 'Invalid VITE_SUPABASE_ANON_KEY format! Key should be a JWT token starting with "eyJ...". Please check your .env.local file.',
         }
       }
+
+      return {
+        success: false,
+        message: 'Unable to connect to Supabase authentication server.',
+      }
     } catch (e: any) {
       console.warn('Supabase Auth attempt failed:', e)
+      return {
+        success: false,
+        message: e?.message || 'Login attempt failed.',
+      }
     } finally {
       isLoading.value = false
     }
-
-    // Strict Offline Local Validation (Check if user registered before)
-    const normalizedEmail = email.trim().toLowerCase()
-    const existingUser = registeredUsers.value[normalizedEmail]
-
-    if (!existingUser) {
-      return {
-        success: false,
-        message: `No account found for "${email}"! Please register an account first.`,
-      }
-    }
-
-    currentUser.value = existingUser
-    isAuthenticated.value = true
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
-    return { success: true }
   }
 
   /**
@@ -163,7 +200,10 @@ export const useAuthStore = defineStore('auth', () => {
           options: {
             data: {
               name: details.name,
+              full_name: details.name,
               role: details.role.toLowerCase(),
+              major: details.major || '',
+              grade: details.grade || '',
             },
           },
         })
@@ -180,11 +220,23 @@ export const useAuthStore = defineStore('auth', () => {
           }
         }
 
+        // Enforce Supabase database profiles sync with role, major, and grade
+        const selectedRoleStr = details.role.toLowerCase()
+        await supabase.from('profiles').upsert({
+          id: authData.user.id,
+          email: details.email,
+          full_name: details.name,
+          role: selectedRoleStr,
+          major: details.major || '',
+          grade: details.grade || '',
+        })
+
         const newProfile: UserProfile = {
           id: authData.user.id,
           name: details.name,
           email: details.email,
           role: details.role,
+          avatar: '',
           major: details.major || '',
           grade: details.grade || '',
           studentId: `STU-2026-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -225,6 +277,7 @@ export const useAuthStore = defineStore('auth', () => {
       name: details.name,
       email: details.email,
       role: details.role,
+      avatar: '',
       major: details.major || '',
       grade: details.grade || '',
       studentId: `STU-2026-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -260,8 +313,9 @@ export const useAuthStore = defineStore('auth', () => {
     // Sync to Supabase if connected
     if (supabase && import.meta.env.VITE_SUPABASE_URL) {
       supabase.from('profiles').update({
-        name: currentUser.value.name,
+        full_name: currentUser.value.name,
         bio: currentUser.value.bio,
+        avatar_url: currentUser.value.avatar || null,
       }).eq('id', currentUser.value.id).then()
     }
   }

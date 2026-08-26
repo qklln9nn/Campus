@@ -68,32 +68,25 @@
 
       <!-- Managed Events Section -->
       <el-card class="main-content-card" shadow="never">
-        <!-- Toolbar Header -->
+        <!-- Toolbar Header with Status Tabs and View Switcher -->
         <div class="toolbar-header">
-          <div class="toolbar-title-group">
-            <h3>Managed Events Overview</h3>
-            <span class="event-count-badge">{{ filteredTableEvents.length }} Events</span>
+          <div class="status-filter-bar">
+            <el-radio-group v-model="activeStatusTab" size="default" class="view-radio-tabs">
+              <el-radio-button value="all">All Events ({{ allCount }})</el-radio-button>
+              <el-radio-button value="published">Published ({{ publishedCount }})</el-radio-button>
+              <el-radio-button value="pending">Pending Review ({{ pendingCount }})</el-radio-button>
+              <el-radio-button value="draft">Draft / Upcoming ({{ draftCount }})</el-radio-button>
+              <el-radio-button value="completed">Completed ({{ completedCount }})</el-radio-button>
+            </el-radio-group>
           </div>
 
           <div class="toolbar-actions">
-            <!-- Search Input -->
-            <el-input
-              v-model="tableSearch"
-              placeholder="Search by title, location, or topic..."
-              clearable
-              style="width: 280px;"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-
             <!-- View Switcher Toggle -->
             <el-radio-group v-model="viewMode" size="default" class="view-switch">
-              <el-radio-button label="grid">
+              <el-radio-button value="grid">
                 <el-icon><Grid /></el-icon> Card Grid
               </el-radio-button>
-              <el-radio-button label="table">
+              <el-radio-button value="table">
                 <el-icon><Menu /></el-icon> Table List
               </el-radio-button>
             </el-radio-group>
@@ -164,25 +157,47 @@
 
               <!-- Card Action Footer -->
               <div class="card-action-footer">
-                <el-button
-                  size="default"
-                  type="primary"
-                  plain
-                  class="flex-1-btn"
-                  @click="openAttendeesDrawer(event)"
-                >
-                  <el-icon><User /></el-icon> Attendees
-                </el-button>
+                <template v-if="(event.status as string).toLowerCase() === 'draft'">
+                  <el-button
+                    size="default"
+                    type="success"
+                    class="flex-1-btn"
+                    @click="handlePublishDraft(event)"
+                  >
+                    <el-icon><Upload /></el-icon> Publish
+                  </el-button>
 
-                <el-button
-                  size="default"
-                  type="warning"
-                  plain
-                  class="flex-1-btn"
-                  @click="openBroadcastModal(event)"
-                >
-                  <el-icon><Bell /></el-icon> Notice
-                </el-button>
+                  <el-button
+                    size="default"
+                    type="primary"
+                    plain
+                    class="flex-1-btn"
+                    @click="handleEdit(event.id)"
+                  >
+                    <el-icon><Edit /></el-icon> Edit
+                  </el-button>
+                </template>
+                <template v-else>
+                  <el-button
+                    size="default"
+                    type="primary"
+                    plain
+                    class="flex-1-btn"
+                    @click="openAttendeesDrawer(event)"
+                  >
+                    <el-icon><User /></el-icon> Attendees
+                  </el-button>
+
+                  <el-button
+                    size="default"
+                    type="warning"
+                    plain
+                    class="flex-1-btn"
+                    @click="openBroadcastModal(event)"
+                  >
+                    <el-icon><Bell /></el-icon> Notice
+                  </el-button>
+                </template>
 
                 <el-dropdown trigger="click">
                   <el-button size="default" class="more-btn">
@@ -276,13 +291,24 @@
             <el-table-column label="Actions" width="260" fixed="right">
               <template #default="scope">
                 <div class="action-btn-group">
-                  <el-button size="small" type="primary" plain @click="openAttendeesDrawer(scope.row)">
-                    <el-icon><User /></el-icon> Attendees
-                  </el-button>
+                  <template v-if="(scope.row.status as string).toLowerCase() === 'draft'">
+                    <el-button size="small" type="success" @click="handlePublishDraft(scope.row)">
+                      <el-icon><Upload /></el-icon> Publish
+                    </el-button>
 
-                  <el-button size="small" type="warning" plain @click="openBroadcastModal(scope.row)">
-                    <el-icon><Bell /></el-icon> Notice
-                  </el-button>
+                    <el-button size="small" type="primary" plain @click="handleEdit(scope.row.id)">
+                      <el-icon><Edit /></el-icon> Edit
+                    </el-button>
+                  </template>
+                  <template v-else>
+                    <el-button size="small" type="primary" plain @click="openAttendeesDrawer(scope.row)">
+                      <el-icon><User /></el-icon> Attendees
+                    </el-button>
+
+                    <el-button size="small" type="warning" plain @click="openBroadcastModal(scope.row)">
+                      <el-icon><Bell /></el-icon> Notice
+                    </el-button>
+                  </template>
 
                   <el-dropdown trigger="click">
                     <el-button size="small" icon>
@@ -342,7 +368,7 @@
           <el-tabs v-model="activeDrawerTab">
             <!-- Confirmed Attendees Tab -->
             <el-tab-pane label="Registered Students" name="registered">
-              <el-table :data="currentAttendees.filter(a => a.status !== 'WAITLIST')" style="width: 100%" size="default">
+              <el-table :data="currentAttendees.filter((a: AttendeeItem) => a.status !== 'WAITLIST')" style="width: 100%" size="default">
                 <el-table-column prop="name" label="Name" width="130">
                   <template #default="scope">
                     <strong>{{ scope.row.name }}</strong>
@@ -367,7 +393,7 @@
 
             <!-- Waitlist Queue Tab -->
             <el-tab-pane label="Waitlist Queue" name="waitlist">
-              <el-table :data="currentAttendees.filter(a => a.status === 'WAITLIST')" style="width: 100%" size="default">
+              <el-table :data="currentAttendees.filter((a: AttendeeItem) => a.status === 'WAITLIST')" style="width: 100%" size="default">
                 <el-table-column prop="waitlistRank" label="Rank" width="80">
                   <template #default="scope">
                     <el-tag size="small" type="warning">#{{ scope.row.waitlistRank }}</el-tag>
@@ -435,11 +461,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import OrganiserLayout from '@/layouts/OrganiserLayout.vue'
 import { useEventStore } from '@/stores/eventStore'
+import { useAuthStore } from '@/stores/authStore'
 import type { EventItem } from '@/types/event'
+import type { AttendeeItem } from '@/stores/eventStore'
 import { handlePosterError, DEFAULT_FALLBACK_POSTER } from '@/lib/posterFallback'
 import {
   Calendar,
@@ -455,17 +483,46 @@ import {
   Delete,
   Grid,
   Menu,
+  Upload,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 const eventStore = useEventStore()
+const authStore = useAuthStore()
+
+async function handlePublishDraft(event: EventItem) {
+  try {
+    await ElMessageBox.confirm(
+      `Are you sure you want to publish "${event.title}" live? It will be visible to all students immediately.`,
+      'Publish Draft Event',
+      {
+        confirmButtonText: 'Publish Now',
+        cancelButtonText: 'Keep Draft',
+        type: 'success',
+      }
+    )
+    const res = await eventStore.publishEventInSupabase(event.id)
+    if (res.success) {
+      ElMessage.success(`Event "${event.title}" published live successfully!`)
+    } else {
+      ElMessage.error(res.message || 'Failed to publish event.')
+    }
+  } catch {
+    // User cancelled
+  }
+}
+
+onMounted(() => {
+  eventStore.fetchEventsFromSupabase()
+})
 
 // State
 const tableSearch = ref('')
 const viewMode = ref<'grid' | 'table'>('grid')
 const currentPage = ref(1)
 const pageSize = ref(6)
+const activeStatusTab = ref<'all' | 'published' | 'pending' | 'draft' | 'completed'>('all')
 
 // Drawer State
 const showAttendeesDrawer = ref(false)
@@ -481,33 +538,75 @@ const broadcastForm = reactive({
   message: '',
 })
 
+// Organiser's Own Events Filter
+const ownEvents = computed(() => {
+  return eventStore.events
+})
+
 // KPI Metrics Computations
-const totalHostedEvents = computed(() => eventStore.events.length)
+const totalHostedEvents = computed(() => ownEvents.value.length)
 const totalRegistrations = computed(() =>
-  eventStore.events.reduce((sum, e) => sum + e.registeredCount, 0),
+  ownEvents.value.reduce((sum: number, e: EventItem) => sum + e.registeredCount, 0),
 )
 const totalWaitlist = computed(() =>
-  eventStore.events.reduce((sum, e) => sum + e.waitlistCount, 0),
+  ownEvents.value.reduce((sum: number, e: EventItem) => sum + e.waitlistCount, 0),
 )
 const avgFillRate = computed(() => {
-  if (eventStore.events.length === 0) return 0
-  const totalPct = eventStore.events.reduce(
-    (sum, e) => sum + (e.registeredCount / e.capacity) * 100,
+  if (ownEvents.value.length === 0) return 0
+  const totalPct = ownEvents.value.reduce(
+    (sum: number, e: EventItem) => sum + (e.registeredCount / e.capacity) * 100,
     0,
   )
-  return Math.round(totalPct / eventStore.events.length)
+  return Math.round(totalPct / ownEvents.value.length)
 })
+
+// Status Counts
+const allCount = computed(() => ownEvents.value.length)
+const publishedCount = computed(() => ownEvents.value.filter((e: EventItem) => {
+  const st = (e.status as string).toLowerCase()
+  return st === 'published' || st === 'approved' || st === 'open' || st === 'filling_fast'
+}).length)
+
+const pendingCount = computed(() => ownEvents.value.filter((e: EventItem) => {
+  const st = (e.status as string).toLowerCase()
+  return st === 'pending' || st === 'waitlist'
+}).length)
+
+const draftCount = computed(() => ownEvents.value.filter((e: EventItem) => {
+  const st = (e.status as string).toLowerCase()
+  return st === 'draft'
+}).length)
+
+const completedCount = computed(() => ownEvents.value.filter((e: EventItem) => {
+  const st = (e.status as string).toLowerCase()
+  return st === 'completed' || st === 'rejected' || st === 'closed'
+}).length)
 
 // Table Filtered & Paginated List
 const filteredTableEvents = computed(() => {
-  if (!tableSearch.value.trim()) return eventStore.events
-  const query = tableSearch.value.toLowerCase()
-  return eventStore.events.filter(
-    (e) =>
-      e.title.toLowerCase().includes(query) ||
-      e.location.toLowerCase().includes(query) ||
-      e.category.toLowerCase().includes(query),
-  )
+  return ownEvents.value.filter((e: EventItem) => {
+    const st = (e.status as string).toLowerCase()
+    // Status Tab Filter
+    if (activeStatusTab.value === 'published') {
+      if (st !== 'published' && st !== 'approved' && st !== 'open' && st !== 'filling_fast') return false
+    } else if (activeStatusTab.value === 'pending') {
+      if (st !== 'pending' && st !== 'waitlist') return false
+    } else if (activeStatusTab.value === 'draft') {
+      if (st !== 'draft') return false
+    } else if (activeStatusTab.value === 'completed') {
+      if (st !== 'completed' && st !== 'rejected' && st !== 'closed') return false
+    }
+
+    // Search Query Filter
+    if (tableSearch.value.trim()) {
+      const query = tableSearch.value.toLowerCase()
+      const titleStr = (e.title || '').toLowerCase()
+      const locStr = (e.location || '').toLowerCase()
+      const catStr = (e.category || '').toLowerCase()
+      return titleStr.includes(query) || locStr.includes(query) || catStr.includes(query)
+    }
+    return true
+  })
 })
 
 const paginatedTableData = computed(() => {
@@ -522,7 +621,7 @@ const currentAttendees = computed(() => {
 })
 
 const checkedInCount = computed(() => {
-  return currentAttendees.value.filter((a) => a.status === 'CHECKED_IN').length
+  return currentAttendees.value.filter((a: AttendeeItem) => a.status === 'CHECKED_IN').length
 })
 
 // Table Progress Status Helpers
@@ -558,9 +657,13 @@ function handleDelete(event: EventItem) {
       type: 'warning',
     },
   )
-    .then(() => {
-      eventStore.deleteEvent(event.id)
-      ElMessage.success('Event deleted successfully.')
+    .then(async () => {
+      const res = await eventStore.deleteEvent(event.id)
+      if (res && !res.success) {
+        ElMessage.error(res.message || 'Failed to delete event from database.')
+      } else {
+        ElMessage.success('Event deleted permanently from Supabase.')
+      }
     })
     .catch(() => {})
 }
@@ -746,6 +849,55 @@ function sendBroadcast() {
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 12px;
+}
+
+/* Status Filter Segmented Control Bar */
+.status-filter-bar {
+  margin-bottom: 0;
+}
+
+.status-tab-group {
+  display: inline-flex;
+  background-color: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab-btn:hover {
+  color: #1e293b;
+}
+
+.tab-btn.active {
+  background-color: #409eff;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.3);
+  font-weight: 700;
+}
+
+.badge-count {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
 }
 
 .toolbar-actions {
