@@ -26,7 +26,7 @@
                 <el-icon class="el-icon--left"><User /></el-icon> My Profile
               </el-button>
             </router-link>
-            <router-link to="/dashboard">
+            <router-link :to="authStore.homePath">
               <el-button type="primary" class="login-btn">
                 <el-icon class="el-icon--left"><Compass /></el-icon> Dashboard
               </el-button>
@@ -159,7 +159,7 @@
                 :event="event"
                 @register-event="openRegistrationDialog"
                 @cancel-registration="handleCancelRegistration"
-                @toggle-bookmark="eventStore.toggleBookmark"
+                @toggle-bookmark="handleToggleBookmark"
               />
             </el-col>
           </el-row>
@@ -398,16 +398,49 @@ function navigateToCategory(catName: CategoryType) {
   router.push('/dashboard')
 }
 
+function ensureStudentAccess(purpose: string): boolean {
+  if (!authStore.isAuthenticated) {
+    ElMessage.info(`Sign in with a student account to ${purpose} events.`)
+    void router.push({ name: 'login', query: { redirect: '/' } })
+    return false
+  }
+  if (authStore.userRole !== 'STUDENT') {
+    ElMessage.warning(`Only student accounts can ${purpose} events.`)
+    return false
+  }
+
+  return true
+}
+
 // Registration Dialog Handle
 function openRegistrationDialog(event: EventItem) {
+  if (!ensureStudentAccess('register for')) return
+
   selectedEvent.value = event
   showRegistrationModal.value = true
 }
 
+function handleToggleBookmark(eventId: string) {
+  if (!ensureStudentAccess('save')) return
+
+  eventStore.toggleBookmark(eventId)
+}
+
 function confirmRegistration() {
   if (!selectedEvent.value) return
+  if (!ensureStudentAccess('register for')) {
+    showRegistrationModal.value = false
+    return
+  }
+
   isSubmitting.value = true
   setTimeout(() => {
+    if (!ensureStudentAccess('register for')) {
+      isSubmitting.value = false
+      showRegistrationModal.value = false
+      return
+    }
+
     const isWaitlist = selectedEvent.value!.registeredCount >= selectedEvent.value!.capacity
     eventStore.registerEvent(selectedEvent.value!.id)
     isSubmitting.value = false
@@ -430,6 +463,8 @@ function confirmRegistration() {
 }
 
 function handleCancelRegistration(eventId: string) {
+  if (!ensureStudentAccess('manage registrations for')) return
+
   const event = eventStore.events.find(e => e.id === eventId)
   if (!event) return
 
@@ -438,6 +473,7 @@ function handleCancelRegistration(eventId: string) {
     'Confirm Action',
     { confirmButtonText: 'Yes, Proceed', cancelButtonText: 'Keep Spot', type: 'warning' }
   ).then(() => {
+    if (!ensureStudentAccess('manage registrations for')) return
     eventStore.cancelRegistration(eventId)
     ElMessage({ type: 'info', message: 'Registration updated.' })
   }).catch(() => {})

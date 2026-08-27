@@ -38,8 +38,8 @@
               <el-icon><UserFilled /></el-icon>
             </div>
             <div class="user-meta">
-              <span class="user-name">{{ authStore.currentUser?.name || 'Dr. Sarah Jenkins' }}</span>
-              <span class="user-role">Host & Administrator</span>
+              <span class="user-name">{{ authStore.currentUser?.name || 'Campus user' }}</span>
+              <span class="user-role">Event organiser</span>
             </div>
             <el-icon><ArrowDown /></el-icon>
           </div>
@@ -101,6 +101,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/authStore'
 import {
   Calendar,
@@ -118,9 +119,14 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
+async function handleLogout() {
+  try {
+    await authStore.logout()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to sign out.')
+  } finally {
+    await router.replace('/login')
+  }
 }
 
 const isSidebarCollapsed = ref(false)

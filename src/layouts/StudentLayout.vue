@@ -93,7 +93,7 @@
             <div class="default-avatar-student">
               <el-icon><UserFilled /></el-icon>
             </div>
-            <span class="user-name">{{ authStore.currentUser?.name || 'Alex Johnson' }}</span>
+            <span class="user-name">{{ authStore.currentUser?.name || 'Campus user' }}</span>
             <el-icon><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
@@ -234,6 +234,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useEventStore } from '@/stores/eventStore'
 import { useAuthStore } from '@/stores/authStore'
 import type { CategoryType } from '@/types/event'
@@ -258,9 +259,14 @@ const router = useRouter()
 const eventStore = useEventStore()
 const authStore = useAuthStore()
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
+async function handleLogout() {
+  try {
+    await authStore.logout()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to sign out.')
+  } finally {
+    await router.replace('/login')
+  }
 }
 const isSidebarCollapsed = ref(false)
 
