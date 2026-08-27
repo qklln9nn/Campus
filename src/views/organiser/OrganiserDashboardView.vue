@@ -164,7 +164,7 @@
                     class="flex-1-btn"
                     @click="handlePublishDraft(event)"
                   >
-                    <el-icon><Upload /></el-icon> Publish
+                    <el-icon><Upload /></el-icon> Submit
                   </el-button>
 
                   <el-button
@@ -293,7 +293,7 @@
                 <div class="action-btn-group">
                   <template v-if="(scope.row.status as string).toLowerCase() === 'draft'">
                     <el-button size="small" type="success" @click="handlePublishDraft(scope.row)">
-                      <el-icon><Upload /></el-icon> Publish
+                      <el-icon><Upload /></el-icon> Submit
                     </el-button>
 
                     <el-button size="small" type="primary" plain @click="handleEdit(scope.row.id)">
@@ -494,19 +494,19 @@ const authStore = useAuthStore()
 async function handlePublishDraft(event: EventItem) {
   try {
     await ElMessageBox.confirm(
-      `Are you sure you want to publish "${event.title}" live? It will be visible to all students immediately.`,
-      'Publish Draft Event',
+      `Submit "${event.title}" for administrator review? It will remain private until approved.`,
+      'Submit Draft for Review',
       {
-        confirmButtonText: 'Publish Now',
+        confirmButtonText: 'Submit for Review',
         cancelButtonText: 'Keep Draft',
         type: 'success',
       }
     )
-    const res = await eventStore.publishEventInSupabase(event.id)
+    const res = await eventStore.submitEventForReview(event.id)
     if (res.success) {
-      ElMessage.success(`Event "${event.title}" published live successfully!`)
+      ElMessage.success(`Event "${event.title}" submitted for administrator review.`)
     } else {
-      ElMessage.error(res.message || 'Failed to publish event.')
+      ElMessage.error(res.message || 'Failed to submit the event for review.')
     }
   } catch {
     // User cancelled

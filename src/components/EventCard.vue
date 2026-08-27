@@ -187,6 +187,7 @@ import { ref, computed } from 'vue'
 import type { EventItem, CategoryType } from '@/types/event'
 import { Calendar, Location, User, Star, StarFilled, Check, Clock, Warning, Right } from '@element-plus/icons-vue'
 import { handlePosterError, DEFAULT_FALLBACK_POSTER } from '@/lib/posterFallback'
+import { useModerationStore } from '@/stores/moderationStore'
 import { ElMessage } from 'element-plus'
 
 const props = withDefaults(
@@ -204,7 +205,8 @@ const props = withDefaults(
 const reportModalVisible = ref(false)
 const reportReason = ref('')
 const reportDetails = ref('')
-const isSubmittingReport = ref(false)
+const moderationStore = useModerationStore()
+const isSubmittingReport = computed(() => moderationStore.submittingReport)
 
 function openReportModal() {
   reportReason.value = ''
@@ -212,17 +214,23 @@ function openReportModal() {
   reportModalVisible.value = true
 }
 
-function submitReport() {
+async function submitReport() {
   if (!reportReason.value) {
     ElMessage.warning('Please select a reason for reporting.')
     return
   }
-  isSubmittingReport.value = true
-  setTimeout(() => {
-    isSubmittingReport.value = false
+  if (reportDetails.value.length > 2000) {
+    ElMessage.warning('Report details must be 2,000 characters or fewer.')
+    return
+  }
+
+  try {
+    await moderationStore.submitReport(props.event.id, reportReason.value, reportDetails.value)
     reportModalVisible.value = false
-    ElMessage.success('Report ticket submitted! It will be reviewed in the Admin Console.')
-  }, 600)
+    ElMessage.success('Report submitted for administrator review.')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to submit this report.')
+  }
 }
 
 function onImgError(e: Event) {
