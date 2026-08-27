@@ -64,7 +64,35 @@ export const routes: RouteRecordRaw[] = [
     path: '/admin',
     name: 'admin',
     component: () => import('../views/admin/AdminView.vue'),
+    redirect: { name: 'admin-dashboard' },
     meta: { requiresAuth: true, roles: ['ADMIN'] },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'admin-dashboard',
+        component: () => import('../views/admin/AdminDashboardView.vue'),
+      },
+      {
+        path: 'events',
+        name: 'admin-events',
+        component: () => import('../views/admin/AdminEventsView.vue'),
+      },
+      {
+        path: 'users',
+        name: 'admin-users',
+        component: () => import('../views/admin/AdminUsersView.vue'),
+      },
+      {
+        path: 'reports',
+        name: 'admin-reports',
+        component: () => import('../views/admin/AdminReportsView.vue'),
+      },
+      {
+        path: 'settings',
+        name: 'admin-settings',
+        component: () => import('../views/admin/AdminSettingsView.vue'),
+      },
+    ],
   },
 ]
 
@@ -109,7 +137,13 @@ export function createAuthGuard(authStore: AuthStore) {
 export function createAppRouter(
   history: RouterHistory = createWebHistory(import.meta.env.BASE_URL),
 ) {
-  const appRouter = createRouter({ history, routes })
+  const appRouter = createRouter({
+    history,
+    routes,
+    scrollBehavior(_to, _from, savedPosition) {
+      return savedPosition ?? { top: 0, left: 0 }
+    },
+  })
   appRouter.beforeEach(createAuthGuard(useAuthStore(pinia)))
   return appRouter
 }

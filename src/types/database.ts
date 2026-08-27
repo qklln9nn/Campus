@@ -53,6 +53,104 @@ export interface Database {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          id: string
+          title: string
+          description: string
+          category: string
+          event_date: string
+          start_time: string
+          end_time: string
+          location: string | null
+          online_link: string | null
+          capacity: number
+          image_url: string | null
+          status: string
+          organiser_id: string
+          reviewed_by: string | null
+          reviewed_at: string | null
+          rejection_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string
+          category: string
+          event_date: string
+          start_time: string
+          end_time: string
+          location?: string | null
+          online_link?: string | null
+          capacity: number
+          image_url?: string | null
+          status?: string
+          organiser_id: string
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          title?: string
+          description?: string
+          category?: string
+          event_date?: string
+          start_time?: string
+          end_time?: string
+          location?: string | null
+          online_link?: string | null
+          capacity?: number
+          image_url?: string | null
+          status?: string
+          organiser_id?: string
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          rejection_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      registrations: {
+        Row: {
+          id: string
+          event_id: string
+          student_id: string
+          status: string
+          attendance_status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          student_id: string
+          status?: string
+          attendance_status?: string
+          created_at?: string
+        }
+        Update: {
+          status?: string
+          attendance_status?: string
+        }
+        Relationships: []
+      }
+      saved_events: {
+        Row: {
+          student_id: string
+          event_id: string
+          created_at: string
+        }
+        Insert: {
+          student_id: string
+          event_id: string
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
