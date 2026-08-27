@@ -28,6 +28,13 @@ export interface UserProfile {
   bio: string
 }
 
+function isValidSupabasePublicKey(key: unknown): key is string {
+  return (
+    typeof key === 'string' &&
+    (key.startsWith('sb_publishable_') || key.startsWith('eyJ'))
+  )
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const STORAGE_KEY = 'campus_eventhub_user'
   const REGISTERED_USERS_KEY = 'campus_registered_users'
@@ -62,11 +69,10 @@ export const useAuthStore = defineStore('auth', () => {
     const normalizedEmail = email.trim().toLowerCase()
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
-    // Validate if Key is proper JWT format
-    const isStandardJwt = anonKey && anonKey.startsWith('eyJ')
+    const hasValidPublicKey = isValidSupabasePublicKey(anonKey)
 
     try {
-      if (import.meta.env.VITE_SUPABASE_URL && isStandardJwt) {
+      if (import.meta.env.VITE_SUPABASE_URL && hasValidPublicKey) {
         // Race condition timeout guard (4.0 seconds)
         const authPromise = supabase.auth.signInWithPassword({
           email,
@@ -140,10 +146,10 @@ export const useAuthStore = defineStore('auth', () => {
         }
 
         return { success: true }
-      } else if (anonKey && !isStandardJwt) {
+      } else if (anonKey && !hasValidPublicKey) {
         return {
           success: false,
-          message: 'Invalid VITE_SUPABASE_ANON_KEY format! Key should be a JWT token starting with "eyJ...". Please check your .env.local file.',
+          message: 'Invalid VITE_SUPABASE_ANON_KEY format. Use a Supabase publishable key (sb_publishable_...) or legacy anon JWT (eyJ...).',
         }
       }
 
@@ -176,10 +182,10 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     const normalizedEmail = details.email.trim().toLowerCase()
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
-    const isStandardJwt = anonKey && anonKey.startsWith('eyJ')
+    const hasValidPublicKey = isValidSupabasePublicKey(anonKey)
 
     try {
-      if (import.meta.env.VITE_SUPABASE_URL && isStandardJwt) {
+      if (import.meta.env.VITE_SUPABASE_URL && hasValidPublicKey) {
         const signUpPromise = supabase.auth.signUp({
           email: details.email,
           password: details.password || '',
@@ -234,10 +240,10 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(registeredUsers.value))
         localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
         return { success: true }
-      } else if (anonKey && !isStandardJwt) {
+      } else if (anonKey && !hasValidPublicKey) {
         return {
           success: false,
-          message: 'Invalid VITE_SUPABASE_ANON_KEY format! Key in .env.local should be a JWT token starting with "eyJ...".',
+          message: 'Invalid VITE_SUPABASE_ANON_KEY format. Use a Supabase publishable key (sb_publishable_...) or legacy anon JWT (eyJ...).',
         }
       }
     } catch (e: any) {
