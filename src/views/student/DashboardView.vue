@@ -117,7 +117,7 @@
               :event="event"
               @register-event="openRegistrationDialog"
               @cancel-registration="handleCancelRegistration"
-              @toggle-bookmark="eventStore.toggleBookmark"
+              @toggle-bookmark="handleToggleBookmark"
             />
           </el-col>
         </el-row>
@@ -217,14 +217,18 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import StudentLayout from '@/layouts/StudentLayout.vue'
 import EventCard from '@/components/EventCard.vue'
+import { useAuthStore } from '@/stores/authStore'
 import { useEventStore } from '@/stores/eventStore'
 import type { EventItem } from '@/types/event'
 import { Refresh, Calendar, Location, User } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const eventStore = useEventStore()
+const authStore = useAuthStore()
+const router = useRouter()
 
 // Local Controls State
 const sortBy = ref<'upcoming' | 'popular' | 'seats'>('upcoming')
@@ -274,16 +278,37 @@ function resetFilters() {
 
 // Open Registration Dialog Modal
 function openRegistrationDialog(event: EventItem) {
+  if (!ensureActiveStudentSession()) return
   selectedEvent.value = event
   showRegistrationModal.value = true
+}
+
+function ensureActiveStudentSession(): boolean {
+  if (authStore.isAuthenticated && authStore.userRole === 'STUDENT') return true
+
+  ElMessage.warning('Your student session is no longer active. Please sign in again.')
+  void router.replace({ name: 'login', query: { redirect: '/dashboard' } })
+  return false
+}
+
+function handleToggleBookmark(eventId: string) {
+  if (!ensureActiveStudentSession()) return
+  eventStore.toggleBookmark(eventId)
 }
 
 // Confirm Registration Handle
 function confirmRegistration() {
   if (!selectedEvent.value) return
+  if (!ensureActiveStudentSession()) return
 
   isSubmitting.value = true
   setTimeout(() => {
+    if (!ensureActiveStudentSession()) {
+      isSubmitting.value = false
+      showRegistrationModal.value = false
+      return
+    }
+
     const isWaitlist = selectedEvent.value!.registeredCount >= selectedEvent.value!.capacity
     eventStore.registerEvent(selectedEvent.value!.id)
     isSubmitting.value = false
@@ -307,6 +332,8 @@ function confirmRegistration() {
 
 // Handle Cancel Registration Confirmation
 function handleCancelRegistration(eventId: string) {
+  if (!ensureActiveStudentSession()) return
+
   const event = eventStore.events.find((e) => e.id === eventId)
   if (!event) return
 
@@ -322,6 +349,7 @@ function handleCancelRegistration(eventId: string) {
     }
   )
     .then(() => {
+      if (!ensureActiveStudentSession()) return
       eventStore.cancelRegistration(eventId)
       ElMessage({
         type: 'info',

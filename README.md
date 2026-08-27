@@ -29,6 +29,9 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 npm install
 ```
 
+Configure Supabase Auth and apply the database migrations by following
+[docs/auth-setup.md](docs/auth-setup.md).
+
 ### Compile and Hot-Reload for Development
 
 ```sh

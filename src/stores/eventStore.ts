@@ -35,7 +35,7 @@ export const useEventStore = defineStore('event', () => {
       status: 'FILLING_FAST',
       isRegistered: false,
       isWaitlisted: false,
-      isBookmarked: true,
+      isBookmarked: false,
     },
     {
       id: 'evt-002',
@@ -77,9 +77,9 @@ export const useEventStore = defineStore('event', () => {
       registeredCount: 145,
       waitlistCount: 0,
       status: 'OPEN',
-      isRegistered: true,
+      isRegistered: false,
       isWaitlisted: false,
-      isBookmarked: true,
+      isBookmarked: false,
     },
     {
       id: 'evt-004',
@@ -122,7 +122,7 @@ export const useEventStore = defineStore('event', () => {
       waitlistCount: 3,
       status: 'WAITLIST',
       isRegistered: false,
-      isWaitlisted: true,
+      isWaitlisted: false,
       isBookmarked: false,
     },
     {
@@ -145,7 +145,7 @@ export const useEventStore = defineStore('event', () => {
       status: 'FILLING_FAST',
       isRegistered: false,
       isWaitlisted: false,
-      isBookmarked: true,
+      isBookmarked: false,
     },
   ])
 
@@ -259,6 +259,14 @@ export const useEventStore = defineStore('event', () => {
     }
   }
 
+  function resetUserActivity() {
+    events.value.forEach((event) => {
+      cancelRegistration(event.id)
+      event.isBookmarked = false
+    })
+    activeTab.value = 'all'
+  }
+
   // --- ORGANISER PORTAL ACTIONS ---
   function addEvent(newEvent: Omit<EventItem, 'id' | 'registeredCount' | 'waitlistCount' | 'status' | 'isRegistered' | 'isWaitlisted' | 'isBookmarked'>) {
     const newId = `evt-${Date.now()}`
@@ -336,6 +344,7 @@ export const useEventStore = defineStore('event', () => {
     toggleBookmark,
     registerEvent,
     cancelRegistration,
+    resetUserActivity,
     // Organiser Portal exports
     addEvent,
     updateEvent,

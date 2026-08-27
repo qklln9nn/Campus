@@ -21,102 +21,98 @@
           <p class="subtitle">Join campus activities, connect with clubs, and manage events.</p>
         </div>
 
+        <el-alert
+          v-if="registrationNotice"
+          :title="registrationNotice"
+          :type="registrationNoticeType"
+          show-icon
+          :closable="false"
+          class="registration-notice"
+        />
+
         <el-tabs v-model="activeTab" class="auth-tabs" stretch>
           <!-- Sign In Tab -->
           <el-tab-pane label="Sign In (登录)" name="signin">
-            <el-form 
+            <el-form
               ref="loginFormRef"
-              :model="loginForm" 
+              :model="loginForm"
               :rules="loginRules"
               label-position="top"
               class="auth-form"
               @submit.prevent="handleLogin"
             >
-              <el-form-item label="Portal / Role" prop="role">
-                <el-select v-model="loginForm.role" placeholder="Select role" class="full-width">
-                  <el-option label="🎓 Student (学生)" value="STUDENT" />
-                  <el-option label="🎪 Event Organiser (活动举办方)" value="ORGANISER" />
-                  <el-option label="⚙️ Campus Admin (管理员)" value="ADMIN" />
-                </el-select>
-              </el-form-item>
-
               <el-form-item label="Campus Email" prop="email">
-                <el-input 
-                  v-model="loginForm.email" 
-                  placeholder="student@campus.edu" 
+                <el-input
+                  v-model="loginForm.email"
+                  placeholder="student@campus.edu"
                   :prefix-icon="User"
                 />
               </el-form-item>
 
               <el-form-item label="Password" prop="password">
-                <el-input 
-                  v-model="loginForm.password" 
-                  type="password" 
-                  placeholder="Enter your password" 
+                <el-input
+                  v-model="loginForm.password"
+                  type="password"
+                  placeholder="Enter your password"
                   show-password
                   :prefix-icon="Lock"
                 />
               </el-form-item>
 
               <div class="form-options">
-                <el-checkbox v-model="loginForm.rememberMe">Remember me</el-checkbox>
-                <a href="#" class="forgot-link" @click.prevent="showForgotNotice">Forgot password?</a>
+                <span></span>
+                <a href="#" class="forgot-link" @click.prevent="handleForgotPassword"
+                  >Forgot password?</a
+                >
               </div>
 
-              <el-button 
-                type="primary" 
-                size="large" 
-                class="auth-submit-btn" 
+              <el-button
+                type="primary"
+                size="large"
+                class="auth-submit-btn"
                 :loading="isSubmitting"
-                @click="handleLogin"
+                native-type="submit"
               >
                 Sign In
               </el-button>
             </el-form>
-
-            <!-- Quick Demo Accounts for fast testing -->
-            <div class="demo-accounts-box">
-              <span class="demo-label">Quick Demo Access:</span>
-              <div class="demo-btns">
-                <el-button size="small" type="info" plain @click="quickFill('STUDENT')">
-                  Student Demo
-                </el-button>
-                <el-button size="small" type="success" plain @click="quickFill('ORGANISER')">
-                  Organiser Demo
-                </el-button>
-                <el-button size="small" type="warning" plain @click="quickFill('ADMIN')">
-                  Admin Demo
-                </el-button>
-              </div>
-            </div>
           </el-tab-pane>
 
           <!-- Register Tab -->
           <el-tab-pane label="Register (注册)" name="register">
-            <el-form 
+            <el-form
               ref="registerFormRef"
-              :model="registerForm" 
+              :model="registerForm"
               :rules="registerRules"
               label-position="top"
               class="auth-form"
               @submit.prevent="handleRegister"
             >
-              <el-form-item label="Account Type" prop="role">
-                <el-radio-group v-model="registerForm.role" size="small" class="role-radio-group">
-                  <el-radio-button value="STUDENT">Student (学生)</el-radio-button>
-                  <el-radio-button value="ORGANISER">Organiser (举办方)</el-radio-button>
-                </el-radio-group>
-              </el-form-item>
+              <el-alert
+                title="Self-registration creates a student account. Organiser access is granted by a campus administrator."
+                type="info"
+                show-icon
+                :closable="false"
+                class="account-type-notice"
+              />
 
               <el-form-item label="Full Name" prop="name">
-                <el-input v-model="registerForm.name" placeholder="e.g. Alex Johnson" :prefix-icon="User" />
+                <el-input
+                  v-model="registerForm.name"
+                  placeholder="e.g. Alex Johnson"
+                  :prefix-icon="User"
+                />
               </el-form-item>
 
               <el-form-item label="Campus Email" prop="email">
-                <el-input v-model="registerForm.email" placeholder="student@campus.edu" :prefix-icon="Message" />
+                <el-input
+                  v-model="registerForm.email"
+                  placeholder="student@campus.edu"
+                  :prefix-icon="Message"
+                />
               </el-form-item>
 
-              <div class="form-row" v-if="registerForm.role === 'STUDENT'">
+              <div class="form-row">
                 <el-form-item label="Major (专业)" prop="major" class="half-width">
                   <el-input v-model="registerForm.major" placeholder="e.g. Computer Science" />
                 </el-form-item>
@@ -132,39 +128,40 @@
               </div>
 
               <el-form-item label="Password" prop="password">
-                <el-input 
-                  v-model="registerForm.password" 
-                  type="password" 
-                  placeholder="At least 6 characters" 
-                  show-password 
+                <el-input
+                  v-model="registerForm.password"
+                  type="password"
+                  placeholder="At least 8 characters"
+                  show-password
                   :prefix-icon="Lock"
                 />
               </el-form-item>
 
               <el-form-item label="Confirm Password" prop="confirmPassword">
-                <el-input 
-                  v-model="registerForm.confirmPassword" 
-                  type="password" 
-                  placeholder="Re-enter password" 
-                  show-password 
+                <el-input
+                  v-model="registerForm.confirmPassword"
+                  type="password"
+                  placeholder="Re-enter password"
+                  show-password
                   :prefix-icon="Lock"
                 />
               </el-form-item>
 
               <el-form-item prop="agreeTerms">
                 <el-checkbox v-model="registerForm.agreeTerms">
-                  I agree to the <a href="#" @click.prevent>Campus Terms of Service</a> & <a href="#" @click.prevent>Privacy Policy</a>
+                  I agree to the <a href="#" @click.prevent>Campus Terms of Service</a> &
+                  <a href="#" @click.prevent>Privacy Policy</a>
                 </el-checkbox>
               </el-form-item>
 
-              <el-button 
-                type="primary" 
-                size="large" 
+              <el-button
+                type="primary"
+                size="large"
                 class="auth-submit-btn"
                 :loading="isSubmitting"
-                @click="handleRegister"
+                native-type="submit"
               >
-                Create Account & Sign In
+                Create Student Account
               </el-button>
             </el-form>
           </el-tab-pane>
@@ -179,7 +176,7 @@ import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Calendar, Back, User, Lock, Message } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { useAuthStore, type UserRole } from '@/stores/authStore'
+import { getRoleHomePath, useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
 const route = useRoute()
@@ -187,53 +184,56 @@ const authStore = useAuthStore()
 
 const activeTab = ref(route.query.tab === 'register' ? 'register' : 'signin')
 const isSubmitting = ref(false)
+const registrationNoticeType = ref<'success' | 'warning'>(
+  route.query.recovery === 'invalid' ? 'warning' : 'success',
+)
+const registrationNotice = ref(
+  route.query.recovery === 'invalid'
+    ? 'This password recovery link is invalid or expired. Request a new one.'
+    : route.query.confirmed === '1'
+      ? 'Email confirmed. You can now sign in.'
+      : route.query.passwordUpdated === '1'
+        ? 'Password updated. Sign in with your new password.'
+        : '',
+)
 
-// Login Form Data
 const loginFormRef = ref<FormInstance>()
 const loginForm = reactive({
-  email: 'alex.johnson@campus.edu',
-  password: 'password123',
-  role: 'STUDENT' as UserRole,
-  rememberMe: true,
+  email: '',
+  password: '',
 })
 
 const loginRules: FormRules = {
   email: [
     { required: true, message: 'Please input campus email', trigger: 'blur' },
-    { type: 'email', message: 'Please enter a valid email address', trigger: ['blur', 'change'] }
+    { type: 'email', message: 'Please enter a valid email address', trigger: ['blur', 'change'] },
   ],
-  password: [
-    { required: true, message: 'Please input password', trigger: 'blur' },
-    { min: 6, message: 'Password must be at least 6 characters', trigger: 'blur' }
-  ],
-  role: [{ required: true, message: 'Please select a role', trigger: 'change' }]
+  password: [{ required: true, message: 'Please input password', trigger: 'blur' }],
 }
 
-// Register Form Data
 const registerFormRef = ref<FormInstance>()
 const registerForm = reactive({
   name: '',
   email: '',
-  role: 'STUDENT' as UserRole,
-  major: 'Computer Science & Engineering',
-  grade: 'Junior (Year 3)',
+  major: '',
+  grade: '',
   password: '',
   confirmPassword: '',
-  agreeTerms: false
+  agreeTerms: false,
 })
 
 const registerRules: FormRules = {
   name: [{ required: true, message: 'Full name is required', trigger: 'blur' }],
   email: [
     { required: true, message: 'Email is required', trigger: 'blur' },
-    { type: 'email', message: 'Valid email required', trigger: ['blur', 'change'] }
+    { type: 'email', message: 'Valid email required', trigger: ['blur', 'change'] },
   ],
   password: [
     { required: true, message: 'Password required', trigger: 'blur' },
-    { min: 6, message: 'At least 6 characters', trigger: 'blur' }
+    { min: 8, message: 'At least 8 characters', trigger: 'blur' },
   ],
   confirmPassword: [
-    { 
+    {
       validator: (_rule, value, callback) => {
         if (!value) {
           callback(new Error('Please confirm your password'))
@@ -242,79 +242,98 @@ const registerRules: FormRules = {
         } else {
           callback()
         }
-      }, 
-      trigger: ['blur', 'change'] 
-    }
-  ]
+      },
+      trigger: ['blur', 'change'],
+    },
+  ],
 }
 
-function quickFill(role: UserRole) {
-  loginForm.role = role
-  if (role === 'STUDENT') {
-    loginForm.email = 'alex.johnson@campus.edu'
-  } else if (role === 'ORGANISER') {
-    loginForm.email = 'sarah.jenkins@campus.edu'
-  } else {
-    loginForm.email = 'admin@campus.edu'
+function errorText(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
+async function validateForm(form: FormInstance | undefined): Promise<boolean> {
+  if (!form) return false
+  return form.validate().catch(() => false)
+}
+
+function safeRedirectPath(): string | null {
+  const redirect = route.query.redirect
+  if (typeof redirect !== 'string' || !redirect.startsWith('/') || redirect.startsWith('//')) {
+    return null
   }
-  handleLogin()
+  return redirect
 }
 
 async function handleLogin() {
-  if (!loginFormRef.value) return
-  await loginFormRef.value.validate((valid) => {
-    if (!valid) return
-    isSubmitting.value = true
-    setTimeout(() => {
-      authStore.login(loginForm.email, loginForm.password, loginForm.role)
-      isSubmitting.value = false
-      ElMessage.success(`Welcome back! Logged in as ${loginForm.role.toLowerCase()}.`)
+  if (!(await validateForm(loginFormRef.value))) return
 
-      // Redirect according to role
-      if (loginForm.role === 'ORGANISER') {
-        router.push('/organiser/dashboard')
-      } else if (loginForm.role === 'ADMIN') {
-        router.push('/admin')
-      } else {
-        router.push('/dashboard')
-      }
-    }, 500)
-  })
+  isSubmitting.value = true
+  try {
+    const profile = await authStore.login(loginForm.email, loginForm.password)
+    ElMessage.success(`Welcome back, ${profile.name}.`)
+    await router.replace(safeRedirectPath() ?? getRoleHomePath(profile.role))
+  } catch (error) {
+    ElMessage.error(errorText(error, 'Unable to sign in.'))
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 async function handleRegister() {
-  if (!registerFormRef.value) return
   if (!registerForm.agreeTerms) {
     ElMessage.warning('Please agree to the Campus Terms & Privacy Policy before registering.')
     return
   }
+  if (!(await validateForm(registerFormRef.value))) return
 
-  await registerFormRef.value.validate((valid) => {
-    if (!valid) return
-    isSubmitting.value = true
-    setTimeout(() => {
-      authStore.register({
-        name: registerForm.name,
-        email: registerForm.email,
-        password: registerForm.password,
-        role: registerForm.role,
-        major: registerForm.major,
-        grade: registerForm.grade,
-      })
-      isSubmitting.value = false
-      ElMessage.success('Account created successfully!')
+  isSubmitting.value = true
+  registrationNoticeType.value = 'success'
+  registrationNotice.value = ''
+  try {
+    const result = await authStore.register({
+      name: registerForm.name,
+      email: registerForm.email,
+      password: registerForm.password,
+      major: registerForm.major,
+      grade: registerForm.grade,
+    })
 
-      if (registerForm.role === 'ORGANISER') {
-        router.push('/organiser/dashboard')
-      } else {
-        router.push('/dashboard')
-      }
-    }, 600)
-  })
+    if (result.requiresEmailConfirmation) {
+      registrationNotice.value =
+        'Account created. Check your campus email to confirm it before signing in.'
+      loginForm.email = registerForm.email
+      loginForm.password = ''
+      activeTab.value = 'signin'
+      ElMessage.success('Confirmation email sent.')
+      return
+    }
+
+    ElMessage.success('Account created successfully!')
+    await router.replace(getRoleHomePath(result.profile?.role))
+  } catch (error) {
+    ElMessage.error(errorText(error, 'Unable to create your account.'))
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
-function showForgotNotice() {
-  ElMessage.info('Password reset instructions have been dispatched to your campus email.')
+async function handleForgotPassword() {
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginForm.email.trim())
+  if (!emailValid) {
+    ElMessage.warning('Enter your campus email first, then request a password reset.')
+    return
+  }
+
+  isSubmitting.value = true
+  try {
+    await authStore.requestPasswordReset(loginForm.email)
+    ElMessage.success('Password reset instructions have been sent if that account exists.')
+  } catch (error) {
+    ElMessage.error(errorText(error, 'Unable to send the password reset email.'))
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -424,6 +443,11 @@ function showForgotNotice() {
   margin-top: 16px;
 }
 
+.registration-notice,
+.account-type-notice {
+  margin-top: 16px;
+}
+
 .full-width {
   width: 100%;
 }
@@ -435,19 +459,6 @@ function showForgotNotice() {
 
 .half-width {
   flex: 1;
-}
-
-.role-radio-group {
-  width: 100%;
-  display: flex;
-}
-
-.role-radio-group :deep(.el-radio-button) {
-  flex: 1;
-}
-
-.role-radio-group :deep(.el-radio-button__inner) {
-  width: 100%;
 }
 
 .form-options {
@@ -480,27 +491,5 @@ function showForgotNotice() {
 
 .auth-submit-btn:hover {
   opacity: 0.95;
-}
-
-.demo-accounts-box {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px dashed #e2e8f0;
-  text-align: center;
-}
-
-.demo-label {
-  display: block;
-  font-size: 0.8rem;
-  color: #64748b;
-  margin-bottom: 10px;
-  font-weight: 500;
-}
-
-.demo-btns {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  flex-wrap: wrap;
 }
 </style>
