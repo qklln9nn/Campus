@@ -1,185 +1,115 @@
 <template>
   <div class="admin-events-view">
-    <!-- Page Title & Search Bar -->
     <div class="page-header">
       <div>
-        <h1 class="page-title">Event Approvals & Governance</h1>
-        <p class="page-subtitle">Review event proposals submitted by campus organisers and manage active events.</p>
+        <h1>Event Approvals & Governance</h1>
+        <p>Review organiser submissions and manage published campus events.</p>
       </div>
-
-      <div class="filter-controls">
-        <el-input
-          v-model="searchQuery"
-          placeholder="Search by event title or organiser..."
-          class="search-input"
-          clearable
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-
-        <el-select v-model="selectedCategory" placeholder="All Categories" clearable style="width: 160px">
-          <el-option label="Academic" value="Academic" />
-          <el-option label="Competition" value="Competition" />
-          <el-option label="Sports" value="Sports" />
-          <el-option label="Culture" value="Culture" />
-        </el-select>
-      </div>
+      <el-button :loading="loadingEvents" @click="loadEvents">Refresh</el-button>
     </div>
 
-    <!-- Filter Control Card with Segmented Status Tabs (Matches Student Dashboard style) -->
+    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" />
+
     <div class="filter-card">
-      <el-radio-group v-model="activeStatusTab" size="default" class="view-radio-tabs">
-        <el-radio-button value="all">All Events ({{ allCount }})</el-radio-button>
+      <el-radio-group v-model="activeStatusTab">
+        <el-radio-button value="all">All ({{ allCount }})</el-radio-button>
+        <el-radio-button value="pending">Pending ({{ pendingCount }})</el-radio-button>
         <el-radio-button value="published">Published ({{ publishedCount }})</el-radio-button>
-        <el-radio-button value="pending">Pending Review ({{ pendingCount }})</el-radio-button>
-        <el-radio-button value="draft">Draft / Upcoming ({{ draftCount }})</el-radio-button>
+        <el-radio-button value="draft">Drafts ({{ draftCount }})</el-radio-button>
         <el-radio-button value="rejected">Rejected ({{ rejectedCount }})</el-radio-button>
+        <el-radio-button value="cancelled">Cancelled ({{ cancelledCount }})</el-radio-button>
       </el-radio-group>
 
-      <div class="filter-controls-right">
-        <el-select v-model="selectedCategory" placeholder="All Categories" clearable style="width: 150px">
-          <el-option label="Academic" value="Academic" />
-          <el-option label="Competition" value="Competition" />
-          <el-option label="Sports" value="Sports" />
-          <el-option label="Culture" value="Culture" />
-        </el-select>
-
-        <el-select v-model="selectedSort" placeholder="Sort By" style="width: 150px">
-          <el-option label="Upcoming First" value="upcoming" />
-          <el-option label="Latest Submitted" value="latest" />
+      <div class="filters">
+        <el-input v-model="searchQuery" clearable placeholder="Search title or organiser..." />
+        <el-select v-model="selectedCategory" clearable placeholder="All categories">
+          <el-option v-for="category in categories" :key="category" :label="category" :value="category" />
         </el-select>
       </div>
     </div>
 
-    <!-- Table List -->
-    <div class="table-container">
-      <el-table :data="filteredEvents" style="width: 100%" size="large" v-loading="loading" border-stripe>
-        <el-table-column label="Event Details" min-width="300">
-          <template #default="{ row }">
-            <div class="event-info-cell">
-              <img :src="row.poster" :alt="row.title" class="poster-thumb" />
-              <div class="info-content">
-                <div class="title-text" :title="row.title">{{ row.title }}</div>
-                <div class="location-text">
-                  <el-icon><Location /></el-icon> {{ row.location }}
-                </div>
-              </div>
+    <el-table
+      v-loading="loadingEvents"
+      :data="filteredEvents"
+      empty-text="No events match the selected filters."
+      stripe
+    >
+      <el-table-column label="Event" min-width="300">
+        <template #default="{ row }">
+          <div class="event-cell">
+            <img :src="row.poster || fallbackPoster" :alt="row.title" />
+            <div>
+              <strong>{{ row.title }}</strong>
+              <span>{{ row.location }}</span>
             </div>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="category" label="Category" width="130" />
+      <el-table-column label="Organiser" min-width="190">
+        <template #default="{ row }">
+          <div class="organiser-cell">
+            <strong>{{ row.organiser }}</strong>
+            <span>{{ row.contactEmail }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="date" label="Scheduled" width="170" />
+      <el-table-column label="Status" width="125" align="center">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)" effect="dark">{{ row.status.toUpperCase() }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="Actions" min-width="270" align="right">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openDetails(row)">Details</el-button>
+          <template v-if="row.status === 'pending'">
+            <el-button type="success" size="small" @click="handleApprove(row)">Approve</el-button>
+            <el-button type="danger" size="small" plain @click="handleReject(row)">Reject</el-button>
           </template>
-        </el-table-column>
+          <el-button
+            v-else-if="row.status === 'published'"
+            type="warning"
+            size="small"
+            plain
+            @click="handleTakeDown(row)"
+          >Take Down</el-button>
+          <el-button
+            v-else-if="row.status === 'rejected' || row.status === 'cancelled'"
+            type="success"
+            size="small"
+            plain
+            @click="handleRestore(row)"
+          >Approve</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
 
-        <el-table-column prop="category" label="Category" width="130" align="center">
-          <template #default="{ row }">
-            <el-tag type="info" size="small" effect="plain">{{ row.category }}</el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="organiser" label="Organiser" min-width="180">
-          <template #default="{ row }">
-            <div class="organiser-cell">
-              <span class="org-name">{{ row.organiser }}</span>
-              <span class="org-contact">{{ row.contactEmail }}</span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="date" label="Scheduled Date" width="160" align="center" />
-
-        <el-table-column prop="status" label="Status" width="150" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" effect="dark" class="status-badge-tag">
-              {{ row.status.toUpperCase() }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="Actions" min-width="240" align="center" fixed="right">
-          <template #default="{ row }">
-            <div class="action-buttons">
-              <el-button type="primary" size="small" link @click="openDetails(row)">
-                <el-icon><View /></el-icon> Details
-              </el-button>
-
-              <template v-if="row.status === 'pending'">
-                <el-button type="success" size="small" @click="handleApprove(row)">
-                  Approve
-                </el-button>
-                <el-button type="danger" size="small" plain @click="handleReject(row)">
-                  Reject
-                </el-button>
-              </template>
-
-              <template v-else-if="row.status === 'approved'">
-                <el-button type="warning" size="small" plain @click="handleTakeDown(row)">
-                  Take Down
-                </el-button>
-              </template>
-
-              <template v-else-if="row.status === 'disabled' || row.status === 'rejected'">
-                <el-button type="info" size="small" plain @click="handleRestore(row)">
-                  Restore
-                </el-button>
-              </template>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-
-    <!-- Event Detail Drawer -->
-    <el-drawer v-model="drawerVisible" title="Event Approval Detail" size="50%" class="admin-drawer">
+    <el-drawer v-model="drawerVisible" title="Event moderation details" size="48%">
       <div v-if="selectedEvent" class="drawer-content">
-        <div class="drawer-banner">
-          <img :src="selectedEvent.poster" :alt="selectedEvent.title" class="drawer-poster" />
-        </div>
-
-        <div class="drawer-section">
+        <img :src="selectedEvent.poster || fallbackPoster" :alt="selectedEvent.title" class="drawer-poster" />
+        <div class="drawer-title">
           <h2>{{ selectedEvent.title }}</h2>
-          <div class="status-header">
-            <el-tag :type="getStatusType(selectedEvent.status)" effect="dark">{{ selectedEvent.status.toUpperCase() }}</el-tag>
-            <span class="submitted-label">Submitted on {{ selectedEvent.submittedDate }}</span>
-          </div>
+          <el-tag :type="getStatusType(selectedEvent.status)">{{ selectedEvent.status }}</el-tag>
         </div>
-
-        <el-divider />
-
-        <div class="drawer-section grid-section">
-          <div>
-            <label>Organiser:</label>
-            <p>{{ selectedEvent.organiser }} ({{ selectedEvent.contactEmail }})</p>
-          </div>
-          <div>
-            <label>Category:</label>
-            <p>{{ selectedEvent.category }}</p>
-          </div>
-          <div>
-            <label>Scheduled Time:</label>
-            <p>{{ selectedEvent.date }}</p>
-          </div>
-          <div>
-            <label>Location:</label>
-            <p>{{ selectedEvent.location }}</p>
-          </div>
-        </div>
-
-        <div class="drawer-section">
-          <label>Event Description & Agenda:</label>
-          <div class="desc-box">{{ selectedEvent.description }}</div>
-        </div>
-
-        <div class="drawer-section">
-          <label>Estimated Capacity & Budget:</label>
-          <p>Capacity: <strong>{{ selectedEvent.capacity }} Seats</strong> | Estimated Budget: <strong>${{ selectedEvent.budget }}</strong></p>
-        </div>
-
-        <div class="drawer-footer-actions">
-          <el-button @click="drawerVisible = false">Close</el-button>
-          <template v-if="selectedEvent.status === 'pending'">
-            <el-button type="danger" @click="handleReject(selectedEvent)">Reject Proposal</el-button>
-            <el-button type="success" @click="handleApprove(selectedEvent)">Approve & Publish</el-button>
-          </template>
+        <dl>
+          <div><dt>Organiser</dt><dd>{{ selectedEvent.organiser }} · {{ selectedEvent.contactEmail }}</dd></div>
+          <div><dt>Schedule</dt><dd>{{ selectedEvent.date }}</dd></div>
+          <div><dt>Location</dt><dd>{{ selectedEvent.location }}</dd></div>
+          <div><dt>Capacity</dt><dd>{{ selectedEvent.capacity }}</dd></div>
+          <div><dt>Submitted</dt><dd>{{ selectedEvent.submittedDate }}</dd></div>
+        </dl>
+        <section><h3>Description</h3><p>{{ selectedEvent.description }}</p></section>
+        <el-alert
+          v-if="selectedEvent.rejectionReason"
+          :title="`Rejection reason: ${selectedEvent.rejectionReason}`"
+          type="error"
+          show-icon
+          :closable="false"
+        />
+        <div v-if="selectedEvent.status === 'pending'" class="drawer-actions">
+          <el-button type="danger" plain @click="handleReject(selectedEvent)">Reject</el-button>
+          <el-button type="success" @click="handleApprove(selectedEvent)">Approve & Publish</el-button>
         </div>
       </div>
     </el-drawer>
@@ -187,414 +117,126 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Location, View } from '@element-plus/icons-vue'
 
+import { useModerationStore, type EventModerationStatus, type ModerationEvent } from '@/stores/moderationStore'
+
+const moderationStore = useModerationStore()
+const { events, loadingEvents, errorMessage } = storeToRefs(moderationStore)
 const searchQuery = ref('')
 const selectedCategory = ref('')
-const selectedSort = ref('upcoming')
-const activeStatusTab = ref('all')
-const loading = ref(false)
+const activeStatusTab = ref<EventModerationStatus | 'all'>('all')
 const drawerVisible = ref(false)
-const selectedEvent = ref<any>(null)
+const selectedEvent = ref<ModerationEvent | null>(null)
+const fallbackPoster = 'https://placehold.co/640x360?text=Campus+Event'
+const categories = ['academic', 'sports', 'cultural', 'tech', 'club', 'career', 'competition']
 
-// Mock Data
-const eventsList = ref([
-  {
-    id: 1,
-    title: 'AI & Machine Learning Innovation Hackathon 2026',
-    poster: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=400&auto=format&fit=crop&q=80',
-    category: 'Competition',
-    organiser: 'School of Computer Science',
-    contactEmail: 'cs-event@campus.edu',
-    location: 'Innovation Lab 301',
-    date: '2026-09-15 09:00',
-    submittedDate: '2026-08-16',
-    status: 'pending',
-    capacity: 200,
-    budget: 1500,
-    description: 'A 24-hour hackathon bringing together students to solve real-world campus problems using AI and modern Web tech.',
-  },
-  {
-    id: 2,
-    title: 'Campus E-Sports Finals & Gaming Exhibition',
-    poster: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&auto=format&fit=crop&q=80',
-    category: 'Sports',
-    organiser: 'Campus Gaming Club',
-    contactEmail: 'esports@campus.edu',
-    location: 'Student Activity Center',
-    date: '2026-08-25 14:00',
-    submittedDate: '2026-08-14',
-    status: 'approved',
-    capacity: 500,
-    budget: 800,
-    description: 'Annual competitive gaming tournament with live commentary, cosplay display, and hardware sponsors.',
-  },
-  {
-    id: 3,
-    title: 'Unsanctioned Off-Campus Party',
-    poster: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&auto=format&fit=crop&q=80',
-    category: 'Culture',
-    organiser: 'Unknown Student Group',
-    contactEmail: 'party@temp.com',
-    location: 'Off-Campus Bar',
-    date: '2026-08-20 22:00',
-    submittedDate: '2026-08-15',
-    status: 'rejected',
-    capacity: 100,
-    budget: 200,
-    description: 'Late night gathering without safety approval.',
-  },
-  {
-    id: 4,
-    title: 'Annual Career Fair & Industry Networking',
-    poster: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&auto=format&fit=crop&q=80',
-    category: 'Academic',
-    organiser: 'Career Services Center',
-    contactEmail: 'careers@campus.edu',
-    location: 'Main Gymnasium',
-    date: '2026-10-01 10:00',
-    submittedDate: '2026-08-10',
-    status: 'approved',
-    capacity: 1000,
-    budget: 5000,
-    description: 'Meet representatives from 50+ tech companies and top enterprises looking for interns and graduates.',
-  },
-  {
-    id: 5,
-    title: 'Robotics Workshop Proposal Draft',
-    poster: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&auto=format&fit=crop&q=80',
-    category: 'Academic',
-    organiser: 'Robotics Club',
-    contactEmail: 'robotics@campus.edu',
-    location: 'Engineering Lab B',
-    date: '2026-11-10 14:00',
-    submittedDate: '2026-08-22',
-    status: 'draft',
-    capacity: 60,
-    budget: 400,
-    description: 'Hands-on introduction to ROS and microcontroller programming.',
-  }
-])
-
-const allCount = computed(() => eventsList.value.length)
-const publishedCount = computed(() => eventsList.value.filter((e) => e.status === 'approved' || e.status === 'published').length)
-const pendingCount = computed(() => eventsList.value.filter((e) => e.status === 'pending').length)
-const draftCount = computed(() => eventsList.value.filter((e) => e.status === 'draft').length)
-const rejectedCount = computed(() => eventsList.value.filter((e) => e.status === 'rejected' || e.status === 'disabled').length)
+const allCount = computed(() => events.value.length)
+const pendingCount = computed(() => events.value.filter((event) => event.status === 'pending').length)
+const publishedCount = computed(() => events.value.filter((event) => event.status === 'published').length)
+const draftCount = computed(() => events.value.filter((event) => event.status === 'draft').length)
+const rejectedCount = computed(() => events.value.filter((event) => event.status === 'rejected').length)
+const cancelledCount = computed(() => events.value.filter((event) => event.status === 'cancelled').length)
 
 const filteredEvents = computed(() => {
-  return eventsList.value.filter((item) => {
-    // Status Filter
-    if (activeStatusTab.value === 'published') {
-      if (item.status !== 'approved' && item.status !== 'published') return false
-    } else if (activeStatusTab.value === 'draft') {
-      if (item.status !== 'draft') return false
-    } else if (activeStatusTab.value === 'rejected') {
-      if (item.status !== 'rejected' && item.status !== 'disabled') return false
-    } else if (activeStatusTab.value === 'pending') {
-      if (item.status !== 'pending') return false
-    }
-    // Category Filter
-    if (selectedCategory.value && item.category !== selectedCategory.value) {
-      return false
-    }
-    // Search Query
-    if (searchQuery.value) {
-      const q = searchQuery.value.toLowerCase()
-      return item.title.toLowerCase().includes(q) || item.organiser.toLowerCase().includes(q)
-    }
+  const query = searchQuery.value.trim().toLowerCase()
+  return events.value.filter((event) => {
+    if (activeStatusTab.value !== 'all' && event.status !== activeStatusTab.value) return false
+    if (selectedCategory.value && event.category !== selectedCategory.value) return false
+    if (query && !event.title.toLowerCase().includes(query) && !event.organiser.toLowerCase().includes(query)) return false
     return true
   })
 })
 
-function getStatusType(status: string) {
-  switch (status) {
-    case 'approved': return 'success'
-    case 'pending': return 'warning'
-    case 'rejected': return 'danger'
-    case 'disabled': return 'info'
-    default: return 'info'
-  }
+function getStatusType(status: EventModerationStatus) {
+  if (status === 'published' || status === 'completed') return 'success'
+  if (status === 'pending') return 'warning'
+  if (status === 'rejected') return 'danger'
+  return 'info'
 }
 
-function openDetails(row: any) {
-  selectedEvent.value = row
+async function loadEvents() {
+  try { await moderationStore.fetchEvents() }
+  catch { ElMessage.error(errorMessage.value || 'Unable to load moderation events.') }
+}
+
+function openDetails(event: ModerationEvent) {
+  selectedEvent.value = event
   drawerVisible.value = true
 }
 
-function handleApprove(row: any) {
-  row.status = 'approved'
-  ElMessage.success(`Event "${row.title}" approved and published.`)
-  if (drawerVisible.value && selectedEvent.value?.id === row.id) {
+async function handleApprove(event: ModerationEvent) {
+  try {
+    await moderationStore.reviewEvent(event.id, 'approve')
     drawerVisible.value = false
+    ElMessage.success(`Event "${event.title}" approved and published.`)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to approve the event.')
   }
 }
 
-function handleReject(row: any) {
-  ElMessageBox.prompt('Enter reason for rejecting this event proposal:', 'Reject Event', {
-    confirmButtonText: 'Reject Proposal',
-    cancelButtonText: 'Cancel',
-    inputPattern: /.+/,
-    inputErrorMessage: 'Rejection reason cannot be empty.',
-  }).then(({ value }) => {
-    row.status = 'rejected'
-    ElMessage.warning(`Event "${row.title}" rejected. Reason: ${value}`)
-    if (drawerVisible.value && selectedEvent.value?.id === row.id) {
-      drawerVisible.value = false
-    }
-  }).catch(() => {})
+async function handleReject(event: ModerationEvent) {
+  try {
+    const { value } = await ElMessageBox.prompt('Explain why this event was rejected.', 'Reject event', {
+      confirmButtonText: 'Reject', cancelButtonText: 'Cancel', inputPattern: /\S+/,
+      inputErrorMessage: 'A rejection reason is required.',
+    })
+    await moderationStore.reviewEvent(event.id, 'reject', value)
+    drawerVisible.value = false
+    ElMessage.success(`Event "${event.title}" rejected.`)
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to reject the event.')
+  }
 }
 
-function handleTakeDown(row: any) {
-  ElMessageBox.confirm(`Are you sure you want to take down "${row.title}"? It will be hidden from the public portal.`, 'Take Down Event', {
-    confirmButtonText: 'Take Down',
-    cancelButtonText: 'Cancel',
-    type: 'warning',
-  }).then(() => {
-    row.status = 'disabled'
-    ElMessage.info(`Event "${row.title}" taken down.`)
-  }).catch(() => {})
+async function handleTakeDown(event: ModerationEvent) {
+  try {
+    await ElMessageBox.confirm(`Take down "${event.title}"?`, 'Take down event', {
+      confirmButtonText: 'Take Down', cancelButtonText: 'Cancel', type: 'warning',
+    })
+    await moderationStore.cancelEvent(event.id)
+    ElMessage.success(`Event "${event.title}" was taken down.`)
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to take down the event.')
+  }
 }
 
-function handleRestore(row: any) {
-  row.status = 'approved'
-  ElMessage.success(`Event "${row.title}" restored to Active.`)
+async function handleRestore(event: ModerationEvent) {
+  try {
+    await moderationStore.reviewEvent(event.id, 'approve')
+    ElMessage.success(`Event "${event.title}" approved and published.`)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to restore the event.')
+  }
 }
+
+onMounted(loadEvents)
 </script>
 
 <style scoped>
-.admin-events-view {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-
-.page-title {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 6px;
-}
-
-.page-subtitle {
-  font-size: 0.9rem;
-  color: #64748b;
-  margin: 0;
-}
-
-.filter-controls {
-  display: flex;
-  gap: 12px;
-}
-
-.search-input {
-  width: 280px;
-}
-
-.filter-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #ffffff;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.status-tab-group {
-  display: inline-flex;
-  background-color: #f1f5f9;
-  padding: 4px;
-  border-radius: 10px;
-  gap: 4px;
-}
-
-.tab-btn {
-  background: transparent;
-  border: none;
-  padding: 8px 16px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #64748b;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tab-btn:hover {
-  color: #1e293b;
-}
-
-.tab-btn.active {
-  background-color: #3b82f6;
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
-  font-weight: 700;
-}
-
-.badge-count {
-  background: #ef4444;
-  color: #ffffff;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 10px;
-}
-
-.filter-controls-right {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.table-container {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  padding: 8px;
-}
-
-.event-info-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.poster-thumb {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.info-content {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.title-text {
-  font-weight: 700;
-  color: #0f172a;
-  font-size: 0.9rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.location-text {
-  font-size: 0.78rem;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-}
-
-.organiser-cell {
-  display: flex;
-  flex-direction: column;
-}
-
-.org-name {
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.org-contact {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-.status-badge-tag {
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  padding: 4px 10px;
-}
-
-.tab-label-with-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tab-badge {
-  transform: translateY(-1px);
-}
-
-.action-buttons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-/* Drawer Content */
-.drawer-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  color: #1e293b;
-}
-
-.drawer-poster {
-  width: 100%;
-  max-height: 220px;
-  object-fit: cover;
-  border-radius: 12px;
-}
-
-.submitted-label {
-  font-size: 0.8rem;
-  color: #64748b;
-  margin-left: 12px;
-}
-
-.grid-section {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.grid-section label, .drawer-section label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-}
-
-.desc-box {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px;
-  font-size: 0.9rem;
-  line-height: 1.6;
-  margin-top: 6px;
-}
-
-.drawer-footer-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
-}
+.admin-events-view { display: flex; flex-direction: column; gap: 20px; }
+.page-header, .filter-card, .filters, .drawer-title, .drawer-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.page-header h1 { margin: 0 0 6px; color: #0f172a; }
+.page-header p { margin: 0; color: #64748b; }
+.filter-card { padding: 14px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; flex-wrap: wrap; }
+.filters { min-width: 420px; }
+.event-cell { display: flex; align-items: center; gap: 12px; }
+.event-cell img { width: 58px; height: 44px; object-fit: cover; border-radius: 8px; }
+.event-cell div, .organiser-cell { display: flex; flex-direction: column; gap: 3px; }
+.event-cell span, .organiser-cell span { color: #64748b; font-size: 0.78rem; }
+.drawer-content { display: flex; flex-direction: column; gap: 20px; }
+.drawer-poster { width: 100%; max-height: 260px; object-fit: cover; border-radius: 12px; }
+.drawer-title h2 { margin: 0; }
+dl { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 0; }
+dl div { background: #f8fafc; border-radius: 8px; padding: 12px; }
+dt { color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+dd { margin: 5px 0 0; color: #1e293b; }
+section h3 { margin-bottom: 8px; }
+section p { color: #475569; line-height: 1.65; }
+.drawer-actions { justify-content: flex-end; }
+@media (max-width: 900px) { .filters { min-width: 100%; } dl { grid-template-columns: 1fr; } }
 </style>

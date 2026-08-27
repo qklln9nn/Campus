@@ -85,12 +85,12 @@
               class="auth-form"
               @submit.prevent="handleRegister"
             >
-              <el-form-item label="Account Type" prop="role">
-                <el-radio-group v-model="registerForm.role" size="small" class="role-radio-group">
-                  <el-radio-button value="STUDENT">Student</el-radio-button>
-                  <el-radio-button value="ORGANISER">Organiser</el-radio-button>
-                </el-radio-group>
-              </el-form-item>
+              <el-alert
+                title="New accounts are created as students. Organiser access is granted by an administrator."
+                type="info"
+                show-icon
+                :closable="false"
+              />
 
               <el-form-item label="Full Name" prop="name">
                 <el-input v-model="registerForm.name" placeholder="e.g. Alex Johnson" :prefix-icon="User" />
@@ -322,11 +322,7 @@ async function handleRegister() {
 
     ElMessage.success('Account created successfully!')
 
-    if (registerForm.role === 'ORGANISER') {
-      router.push('/organiser/dashboard')
-    } else {
-      router.push('/dashboard')
-    }
+    router.push('/dashboard')
   })
 }
 

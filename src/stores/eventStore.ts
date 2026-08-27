@@ -50,12 +50,11 @@ export const useEventStore = defineStore('event', () => {
   const selectedCategory = ref<CategoryType | 'All'>('All')
   const activeTab = ref<'all' | 'registered' | 'waitlisted' | 'saved'>('all')
 
-  // Computed Filtered Events (for Student Portal: strictly exclude drafts)
+  // Student-facing lists only expose events that passed moderation.
   const filteredEvents = computed(() => {
     return events.value.filter((event) => {
-      // Students should only see published/active events, exclude draft items
       const st = (event.status as string || '').toLowerCase()
-      if (st === 'draft') return false
+      if (!['published', 'completed', 'open', 'filling_fast', 'waitlist'].includes(st)) return false
 
       // Tab filter
       if (activeTab.value === 'registered' && !event.isRegistered) return false
@@ -201,7 +200,7 @@ export const useEventStore = defineStore('event', () => {
   }
 
   /**
-   * Real Supabase Event Creation (Supports Draft & Direct Publish)
+   * Real Supabase event creation (draft or pending administrator review).
    */
   async function createEventInSupabase(
     eventPayload: {
@@ -220,18 +219,10 @@ export const useEventStore = defineStore('event', () => {
   ): Promise<{ success: boolean; event?: EventItem; message?: string }> {
     const authStore = useAuthStore()
     let organiserId = authStore.currentUser?.id
-    const hostName = eventPayload.organiserName || authStore.currentUser?.name || 'Campus Organiser'
-
     if (!organiserId && supabase && import.meta.env.VITE_SUPABASE_URL) {
       const { data: authData } = await supabase.auth.getUser()
       if (authData?.user) {
         organiserId = authData.user.id
-      } else {
-        // Fetch any existing organiser profile as fallback to ensure valid foreign key
-        const { data: profs } = await supabase.from('profiles').select('id').limit(1)
-        if (profs && profs.length > 0 && profs[0]?.id) {
-          organiserId = profs[0].id
-        }
       }
     }
 
@@ -243,7 +234,7 @@ export const useEventStore = defineStore('event', () => {
       }
     }
 
-    const eventStatus = eventPayload.isDraft ? 'draft' : 'published'
+    const eventStatus = eventPayload.isDraft ? 'draft' : 'pending'
 
     // Robust Time Range Formatting (Ensures end_time > start_time to pass DB checks)
     let sTime = '14:00:00'
@@ -267,21 +258,6 @@ export const useEventStore = defineStore('event', () => {
     const generatedId = generateValidUUID()
 
     try {
-      // Safely attempt organiser profile upsert without throwing global errors
-      try {
-        await supabase.from('profiles').upsert(
-          {
-            id: organiserId,
-            email: authStore.currentUser?.email || 'organiser@campus.edu',
-            full_name: hostName,
-            role: 'organiser',
-          },
-          { onConflict: 'id' }
-        )
-      } catch (profileErr) {
-        console.warn('Profile sync notice:', profileErr)
-      }
-
       const { data: dbData, error: dbErr } = await supabase
         .from('events')
         .insert({
@@ -341,19 +317,19 @@ export const useEventStore = defineStore('event', () => {
       isDraft?: boolean
     }
   ): Promise<{ success: boolean; message?: string }> {
-    const eventStatus = eventPayload.isDraft ? 'draft' : 'published'
+    const eventStatus = eventPayload.isDraft ? 'draft' : 'pending'
 
     // Clean bullet separators and safely extract HH:mm:ss
     let sTime = '14:00:00'
     let eTime = '18:00:00'
     if (eventPayload.startTime) {
-      const clean = eventPayload.startTime.replace(/•/g, ' ').trim()
+      const clean = eventPayload.startTime.replace(/\u2022/g, ' ').trim()
       const parts = clean.split(' ')
       const tStr = parts.find((p) => p.includes(':')) || '14:00'
       sTime = tStr.split(':').length === 2 ? `${tStr}:00` : tStr
     }
     if (eventPayload.endTime) {
-      const clean = eventPayload.endTime.replace(/•/g, ' ').trim()
+      const clean = eventPayload.endTime.replace(/\u2022/g, ' ').trim()
       const parts = clean.split(' ')
       const tStr = parts.find((p) => p.includes(':')) || '18:00'
       eTime = tStr.split(':').length === 2 ? `${tStr}:00` : tStr
@@ -377,7 +353,7 @@ export const useEventStore = defineStore('event', () => {
       target.endTime = fullEnd
       target.location = eventPayload.location
       target.capacity = Number(eventPayload.capacity) || 50
-      target.status = eventPayload.isDraft ? ('DRAFT' as any) : 'OPEN'
+      target.status = eventPayload.isDraft ? 'DRAFT' : 'PENDING'
       if (eventPayload.organiserName) {
         target.organiser.name = eventPayload.organiserName
       }
@@ -417,29 +393,29 @@ export const useEventStore = defineStore('event', () => {
   }
 
   /**
-   * Directly Publish a Draft Event
+   * Submit a draft event for administrator review.
    */
-  async function publishEventInSupabase(eventId: string): Promise<{ success: boolean; message?: string }> {
+  async function submitEventForReview(eventId: string): Promise<{ success: boolean; message?: string }> {
     const event = events.value.find((e) => e.id === eventId)
     if (event) {
-      event.status = 'OPEN'
+      event.status = 'PENDING'
     }
 
     if (supabase && import.meta.env.VITE_SUPABASE_URL) {
       try {
         const { error } = await supabase
           .from('events')
-          .update({ status: 'published' })
+          .update({ status: 'pending' })
           .eq('id', eventId)
 
         if (!error) {
           await fetchEventsFromSupabase()
         } else {
-          console.warn('Supabase publishEvent error:', error)
+          console.warn('Supabase submitEventForReview error:', error)
           return { success: false, message: error.message }
         }
       } catch (err: any) {
-        console.warn('Supabase publishEvent exception:', err)
+        console.warn('Supabase submitEventForReview exception:', err)
         return { success: false, message: err.message }
       }
     }
@@ -547,116 +523,9 @@ export const useEventStore = defineStore('event', () => {
             isBookmarked: userSavedSet.has(item.id),
           }
         })
-      } else if (!error && (!data || data.length === 0)) {
-        await seedInitialEventsToSupabase()
       }
     } catch (e) {
       console.warn('Supabase fetchEvents warning:', e)
-    }
-  }
-
-  /**
-   * Seed Published Events into Supabase 'events' Table when empty
-   */
-  async function seedInitialEventsToSupabase() {
-    try {
-      if (!supabase || !import.meta.env.VITE_SUPABASE_URL) return
-
-      // Find an organiser profile ID if exists
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id')
-        .limit(1)
-
-      let organiserId = profiles && profiles.length > 0 ? profiles[0]?.id : null
-
-      // If no profile exists, try to get authenticated user or skip insert
-      if (!organiserId) {
-        const { data: authData } = await supabase.auth.getUser()
-        if (authData?.user) {
-          organiserId = authData.user.id
-        }
-      }
-
-      if (!organiserId) {
-        // Cannot insert without organiser_id foreign key, keep static mockup events active
-        return
-      }
-
-      const seedRows = [
-        {
-          title: 'AI & Future Tech Summit 2026',
-          description:
-            'Explore the next frontier of Large Language Models, Robotics, and Quantum Computing with leading researchers and industry speakers.',
-          category: 'tech',
-          event_date: '2026-10-28',
-          start_time: '14:00:00',
-          end_time: '18:00:00',
-          location: 'Innovation Center Auditorium A',
-          capacity: 120,
-          image_url:
-            'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
-          status: 'published',
-          organiser_id: organiserId,
-        },
-        {
-          title: 'Academic Research & Publishing Seminar',
-          description:
-            'Learn journal submission strategies, peer review processes, and citation management from veteran professors and journal editors.',
-          category: 'academic',
-          event_date: '2026-11-02',
-          start_time: '10:30:00',
-          end_time: '12:30:00',
-          location: 'Library Lecture Theatre 2',
-          capacity: 60,
-          image_url:
-            'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80',
-          status: 'published',
-          organiser_id: organiserId,
-        },
-        {
-          title: 'Inter-Department Football Championship',
-          description:
-            'Cheer for your faculty team in the ultimate campus football final! Matches start sharply at 3 PM. Refreshments available.',
-          category: 'sports',
-          event_date: '2026-10-30',
-          start_time: '15:00:00',
-          end_time: '18:30:00',
-          location: 'Central Campus Stadium Field 1',
-          capacity: 200,
-          image_url:
-            'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=800&q=80',
-          status: 'published',
-          organiser_id: organiserId,
-        },
-        {
-          title: 'International Cultural Fair & Food Fest',
-          description:
-            'Celebrate global diversity with traditional music, dance performances, costume showcases, and authentic food tasting booths.',
-          category: 'cultural',
-          event_date: '2026-11-12',
-          start_time: '11:00:00',
-          end_time: '17:00:00',
-          location: 'Campus Main Plaza & Lawn',
-          capacity: 350,
-          image_url:
-            'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=800&q=80',
-          status: 'published',
-          organiser_id: organiserId,
-        },
-      ]
-
-      const { data: insertedData, error: insertErr } = await supabase
-        .from('events')
-        .insert(seedRows)
-        .select('*')
-
-      if (!insertErr && insertedData && insertedData.length > 0) {
-        // Re-run fetch after seeding
-        await fetchEventsFromSupabase()
-      }
-    } catch (err) {
-      console.warn('Seed initial events warning:', err)
     }
   }
 
@@ -759,7 +628,7 @@ export const useEventStore = defineStore('event', () => {
     fetchEventsFromSupabase,
     createEventInSupabase,
     updateEventInSupabase,
-    publishEventInSupabase,
+    submitEventForReview,
     toggleBookmark,
     registerEvent,
     cancelRegistration,

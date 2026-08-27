@@ -55,7 +55,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(
     email: string,
     password?: string,
-    fallbackRole: UserRole = 'STUDENT',
+    _fallbackRole: UserRole = 'STUDENT',
     rememberMe: boolean = true
   ): Promise<{ success: boolean; message?: string }> {
     isLoading.value = true
@@ -97,28 +97,14 @@ export const useAuthStore = defineStore('auth', () => {
           .eq('id', authData.user.id)
           .maybeSingle()
 
-        // Priority 1: Database profiles table role (Authoritative)
-        // Priority 2: Auth user_metadata role saved during signUp
-        // Priority 3: Form fallbackRole selected during login
-        let dbRole: UserRole = fallbackRole || 'STUDENT'
-        if (profile?.role) {
-          dbRole = profile.role.toUpperCase() as UserRole
-        } else if (authData.user.user_metadata?.role) {
-          dbRole = authData.user.user_metadata.role.toUpperCase() as UserRole
+        if (!profile?.role) {
+          return { success: false, message: 'This account has no campus profile. Contact an administrator.' }
         }
-
-        // If profile was missing or outdated, update profile table to keep in sync
-        if (!profile || profile.role?.toUpperCase() !== dbRole) {
-          await supabase.from('profiles').upsert(
-            {
-              id: authData.user.id,
-              email: authData.user.email || email,
-              full_name: authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || (email ? email.split('@')[0] : 'Campus Organiser'),
-              role: dbRole.toLowerCase(),
-            },
-            { onConflict: 'id' }
-          )
+        const normalizedRole = profile.role.toUpperCase()
+        if (!['STUDENT', 'ORGANISER', 'ADMIN'].includes(normalizedRole)) {
+          return { success: false, message: 'This account has an invalid campus role.' }
         }
+        const dbRole = normalizedRole as UserRole
 
         currentUser.value = {
           id: authData.user.id,
@@ -201,7 +187,7 @@ export const useAuthStore = defineStore('auth', () => {
             data: {
               name: details.name,
               full_name: details.name,
-              role: details.role.toLowerCase(),
+              role: 'student',
               major: details.major || '',
               grade: details.grade || '',
             },
@@ -220,22 +206,11 @@ export const useAuthStore = defineStore('auth', () => {
           }
         }
 
-        // Enforce Supabase database profiles sync with role, major, and grade
-        const selectedRoleStr = details.role.toLowerCase()
-        await supabase.from('profiles').upsert({
-          id: authData.user.id,
-          email: details.email,
-          full_name: details.name,
-          role: selectedRoleStr,
-          major: details.major || '',
-          grade: details.grade || '',
-        })
-
         const newProfile: UserProfile = {
           id: authData.user.id,
           name: details.name,
           email: details.email,
-          role: details.role,
+          role: 'STUDENT',
           avatar: '',
           major: details.major || '',
           grade: details.grade || '',
@@ -276,7 +251,7 @@ export const useAuthStore = defineStore('auth', () => {
       id: `usr-${Date.now()}`,
       name: details.name,
       email: details.email,
-      role: details.role,
+      role: 'STUDENT',
       avatar: '',
       major: details.major || '',
       grade: details.grade || '',

@@ -5,7 +5,7 @@
       <div class="page-header">
         <div>
           <h2 class="page-title">{{ isEditMode ? 'Edit Campus Event' : 'Create New Campus Event' }}</h2>
-          <p class="page-subtitle">Fill in event details, capacity settings, and upload posters to publish for all students.</p>
+          <p class="page-subtitle">Fill in event details, then save a draft or submit it for administrator review.</p>
         </div>
         <div class="header-actions">
           <el-button @click="handleCancel">Cancel</el-button>
@@ -13,7 +13,7 @@
             <el-icon><Document /></el-icon> Save as Draft
           </el-button>
           <el-button type="primary" :loading="isSubmitting" @click="submitForm(formRef, false)">
-            <el-icon><Check /></el-icon> {{ isEditMode ? 'Save Changes' : 'Publish Event' }}
+            <el-icon><Check /></el-icon> {{ isEditMode ? 'Save Changes' : 'Submit for Review' }}
           </el-button>
         </div>
       </div>
@@ -224,7 +224,7 @@
             </div>
 
             <!-- Rendered Live Event Card -->
-            <EventCard :event="previewEvent" />
+            <EventCard :event="previewEvent" hide-action-btn hide-overlay-actions />
 
             <div class="preview-tip-box">
               <el-icon><Opportunity /></el-icon>
@@ -431,7 +431,7 @@ async function submitForm(formEl: FormInstance | undefined, isDraft: boolean = f
         } else if (isDraft) {
           ElMessage.success('Event draft saved successfully!')
         } else {
-          ElMessage.success('Event published live successfully!')
+          ElMessage.success('Event submitted for administrator review.')
         }
         router.push('/organiser/dashboard')
       } else {
