@@ -5,7 +5,7 @@
       <div class="page-header">
         <div>
           <h2 class="page-title">{{ isEditMode ? 'Edit Campus Event' : 'Create New Campus Event' }}</h2>
-          <p class="page-subtitle">Fill in event details, capacity settings, and upload posters to publish for all students.</p>
+          <p class="page-subtitle">Fill in event details, then save a draft or submit it for administrator review.</p>
         </div>
         <div class="header-actions">
           <el-button @click="handleCancel">Cancel</el-button>
@@ -13,7 +13,7 @@
             <el-icon><Document /></el-icon> Save as Draft
           </el-button>
           <el-button type="primary" :loading="isSubmitting" @click="submitForm(formRef, false)">
-            <el-icon><Check /></el-icon> {{ isEditMode ? 'Save Changes' : 'Publish Event' }}
+            <el-icon><Check /></el-icon> {{ isEditMode ? 'Save Changes' : 'Submit for Review' }}
           </el-button>
         </div>
       </div>
@@ -206,9 +206,10 @@
                     type="textarea"
                     :rows="4"
                     placeholder="Provide overview, schedule highlights, prerequisites, or special instructions..."
-                    maxlength="500"
-                    show-word-limit
                   />
+                  <div class="word-limit-hint" :class="{ over: descriptionWordCount > MAX_DESCRIPTION_WORDS }">
+                    {{ descriptionWordCount }} / {{ MAX_DESCRIPTION_WORDS }} words
+                  </div>
                 </el-form-item>
               </div>
             </el-form>
@@ -224,7 +225,7 @@
             </div>
 
             <!-- Rendered Live Event Card -->
-            <EventCard :event="previewEvent" />
+            <EventCard :event="previewEvent" hide-action-btn hide-overlay-actions />
 
             <div class="preview-tip-box">
               <el-icon><Opportunity /></el-icon>
@@ -321,6 +322,12 @@ const formData = reactive({
 })
 
 // Validation Rules
+const MAX_DESCRIPTION_WORDS = 400
+
+const descriptionWordCount = computed(() =>
+  formData.description.trim().split(/\s+/).filter(Boolean).length
+)
+
 const formRules = reactive<FormRules>({
   title: [
     { required: true, message: 'Please enter event title', trigger: 'blur' },
@@ -332,7 +339,19 @@ const formRules = reactive<FormRules>({
   location: [{ required: true, message: 'Please specify location venue', trigger: 'blur' }],
   capacity: [{ required: true, message: 'Capacity is required', trigger: 'change' }],
   posterUrl: [{ required: true, message: 'Please provide poster URL or pick a preset', trigger: 'blur' }],
-  description: [{ required: true, message: 'Please provide event description', trigger: 'blur' }],
+  description: [
+    { required: true, message: 'Please provide event description', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        if (value.trim().split(/\s+/).filter(Boolean).length > MAX_DESCRIPTION_WORDS) {
+          callback(new Error(`Description must be ${MAX_DESCRIPTION_WORDS} words or fewer`))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
 })
 
 // Computed Live Preview Event Item Object
@@ -431,7 +450,7 @@ async function submitForm(formEl: FormInstance | undefined, isDraft: boolean = f
         } else if (isDraft) {
           ElMessage.success('Event draft saved successfully!')
         } else {
-          ElMessage.success('Event published live successfully!')
+          ElMessage.success('Event submitted for administrator review.')
         }
         router.push('/organiser/dashboard')
       } else {
@@ -504,6 +523,19 @@ function handleCancel() {
 
 .section-title .el-icon {
   color: #6366f1;
+}
+
+.word-limit-hint {
+  width: 100%;
+  text-align: right;
+  font-size: 0.75rem;
+  color: #909399;
+  margin-top: 4px;
+}
+
+.word-limit-hint.over {
+  color: #f56c6c;
+  font-weight: 600;
 }
 
 .venue-presets {

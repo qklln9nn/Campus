@@ -1,6 +1,15 @@
 export type CategoryType = 'Academic' | 'Club' | 'Sports' | 'Tech' | 'Cultural' | 'Career';
 
-export type EventStatus = 'OPEN' | 'FILLING_FAST' | 'WAITLIST' | 'CLOSED';
+export type EventStatus =
+  | 'OPEN'
+  | 'FILLING_FAST'
+  | 'WAITLIST'
+  | 'CLOSED'
+  | 'DRAFT'
+  | 'PENDING'
+  | 'REJECTED'
+  | 'CANCELLED'
+  | 'COMPLETED';
 
 export interface EventItem {
   id: string;

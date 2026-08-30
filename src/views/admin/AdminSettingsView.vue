@@ -56,9 +56,9 @@
         <div class="form-item">
           <div class="item-label">
             <span>Require Manual Admin Approval for Events</span>
-            <p>If disabled, newly created events will automatically be published without review.</p>
+            <p>Enforced by database policy. Organiser submissions remain private until an administrator approves them.</p>
           </div>
-          <el-switch v-model="settings.requireApproval" active-color="#ef4444" />
+          <el-switch :model-value="true" active-color="#ef4444" disabled />
         </div>
 
         <el-divider />
