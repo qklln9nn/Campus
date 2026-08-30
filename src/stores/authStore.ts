@@ -28,6 +28,13 @@ export interface UserProfile {
   bio: string
 }
 
+function isValidSupabasePublicKey(key: unknown): key is string {
+  return (
+    typeof key === 'string' &&
+    (key.startsWith('sb_publishable_') || key.startsWith('eyJ'))
+  )
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const STORAGE_KEY = 'campus_eventhub_user'
   const REGISTERED_USERS_KEY = 'campus_registered_users'
@@ -55,18 +62,17 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(
     email: string,
     password?: string,
-    fallbackRole: UserRole = 'STUDENT',
+    _fallbackRole: UserRole = 'STUDENT',
     rememberMe: boolean = true
   ): Promise<{ success: boolean; message?: string }> {
     isLoading.value = true
     const normalizedEmail = email.trim().toLowerCase()
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
-    // Validate if Key is proper JWT format
-    const isStandardJwt = anonKey && anonKey.startsWith('eyJ')
+    const hasValidPublicKey = isValidSupabasePublicKey(anonKey)
 
     try {
-      if (import.meta.env.VITE_SUPABASE_URL && isStandardJwt) {
+      if (import.meta.env.VITE_SUPABASE_URL && hasValidPublicKey) {
         // Race condition timeout guard (4.0 seconds)
         const authPromise = supabase.auth.signInWithPassword({
           email,
@@ -97,28 +103,14 @@ export const useAuthStore = defineStore('auth', () => {
           .eq('id', authData.user.id)
           .maybeSingle()
 
-        // Priority 1: Database profiles table role (Authoritative)
-        // Priority 2: Auth user_metadata role saved during signUp
-        // Priority 3: Form fallbackRole selected during login
-        let dbRole: UserRole = fallbackRole || 'STUDENT'
-        if (profile?.role) {
-          dbRole = profile.role.toUpperCase() as UserRole
-        } else if (authData.user.user_metadata?.role) {
-          dbRole = authData.user.user_metadata.role.toUpperCase() as UserRole
+        if (!profile?.role) {
+          return { success: false, message: 'This account has no campus profile. Contact an administrator.' }
         }
-
-        // If profile was missing or outdated, update profile table to keep in sync
-        if (!profile || profile.role?.toUpperCase() !== dbRole) {
-          await supabase.from('profiles').upsert(
-            {
-              id: authData.user.id,
-              email: authData.user.email || email,
-              full_name: authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || (email ? email.split('@')[0] : 'Campus Organiser'),
-              role: dbRole.toLowerCase(),
-            },
-            { onConflict: 'id' }
-          )
+        const normalizedRole = profile.role.toUpperCase()
+        if (!['STUDENT', 'ORGANISER', 'ADMIN'].includes(normalizedRole)) {
+          return { success: false, message: 'This account has an invalid campus role.' }
         }
+        const dbRole = normalizedRole as UserRole
 
         currentUser.value = {
           id: authData.user.id,
@@ -154,10 +146,10 @@ export const useAuthStore = defineStore('auth', () => {
         }
 
         return { success: true }
-      } else if (anonKey && !isStandardJwt) {
+      } else if (anonKey && !hasValidPublicKey) {
         return {
           success: false,
-          message: 'Invalid VITE_SUPABASE_ANON_KEY format! Key should be a JWT token starting with "eyJ...". Please check your .env.local file.',
+          message: 'Invalid VITE_SUPABASE_ANON_KEY format. Use a Supabase publishable key (sb_publishable_...) or legacy anon JWT (eyJ...).',
         }
       }
 
@@ -190,10 +182,10 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     const normalizedEmail = details.email.trim().toLowerCase()
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
-    const isStandardJwt = anonKey && anonKey.startsWith('eyJ')
+    const hasValidPublicKey = isValidSupabasePublicKey(anonKey)
 
     try {
-      if (import.meta.env.VITE_SUPABASE_URL && isStandardJwt) {
+      if (import.meta.env.VITE_SUPABASE_URL && hasValidPublicKey) {
         const signUpPromise = supabase.auth.signUp({
           email: details.email,
           password: details.password || '',
@@ -201,7 +193,7 @@ export const useAuthStore = defineStore('auth', () => {
             data: {
               name: details.name,
               full_name: details.name,
-              role: details.role.toLowerCase(),
+              role: 'student',
               major: details.major || '',
               grade: details.grade || '',
             },
@@ -220,22 +212,11 @@ export const useAuthStore = defineStore('auth', () => {
           }
         }
 
-        // Enforce Supabase database profiles sync with role, major, and grade
-        const selectedRoleStr = details.role.toLowerCase()
-        await supabase.from('profiles').upsert({
-          id: authData.user.id,
-          email: details.email,
-          full_name: details.name,
-          role: selectedRoleStr,
-          major: details.major || '',
-          grade: details.grade || '',
-        })
-
         const newProfile: UserProfile = {
           id: authData.user.id,
           name: details.name,
           email: details.email,
-          role: details.role,
+          role: 'STUDENT',
           avatar: '',
           major: details.major || '',
           grade: details.grade || '',
@@ -259,10 +240,10 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(registeredUsers.value))
         localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser.value))
         return { success: true }
-      } else if (anonKey && !isStandardJwt) {
+      } else if (anonKey && !hasValidPublicKey) {
         return {
           success: false,
-          message: 'Invalid VITE_SUPABASE_ANON_KEY format! Key in .env.local should be a JWT token starting with "eyJ...".',
+          message: 'Invalid VITE_SUPABASE_ANON_KEY format. Use a Supabase publishable key (sb_publishable_...) or legacy anon JWT (eyJ...).',
         }
       }
     } catch (e: any) {
@@ -276,7 +257,7 @@ export const useAuthStore = defineStore('auth', () => {
       id: `usr-${Date.now()}`,
       name: details.name,
       email: details.email,
-      role: details.role,
+      role: 'STUDENT',
       avatar: '',
       major: details.major || '',
       grade: details.grade || '',
