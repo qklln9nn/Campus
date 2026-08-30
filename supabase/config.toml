@@ -1,0 +1,4 @@
+project_id = "campus-eventhub"
+
+[functions.ai-summary]
+verify_jwt = false

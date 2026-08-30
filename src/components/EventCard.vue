@@ -14,6 +14,37 @@
         {{ statusText }}
       </div>
 
+      <!-- AI Summary Button (Top-Right Corner) -->
+      <button
+        class="ai-summary-trigger"
+        @click.stop="toggleAiSummary"
+        title="AI 1-second summary"
+      >
+        ✨ AI Summary
+      </button>
+
+      <!-- AI Summary Overlay Panel -->
+      <transition name="ai-fade">
+        <div class="ai-summary-panel" v-if="aiVisible" @click.stop>
+          <div class="ai-panel-header">
+            <span class="ai-panel-title">✨ AI Summary</span>
+            <button class="ai-panel-close" @click.stop="aiVisible = false" title="Close">✕</button>
+          </div>
+          <p v-if="aiLoading" class="ai-panel-text ai-panel-loading">
+            <el-icon class="is-loading"><Loading /></el-icon> AI is thinking...
+          </p>
+          <p v-else-if="aiError" class="ai-panel-text ai-panel-error">
+            {{ aiError }}
+            <button class="ai-retry-btn" @click.stop="toggleAiSummary">Retry</button>
+          </p>
+          <div v-else class="ai-panel-body">
+            <p v-for="(line, i) in summaryLines" :key="i" class="ai-panel-line">
+              <span v-if="line.label" class="ai-line-label">{{ line.label }}: </span><span>{{ line.text }}</span>
+            </p>
+          </div>
+        </div>
+      </transition>
+
       <!-- Bookmark & Report Action Buttons (Hidden when hideOverlayActions is true) -->
       <div class="poster-actions-overlay" v-if="!hideOverlayActions">
         <button 
@@ -185,9 +216,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { EventItem, CategoryType } from '@/types/event'
-import { Calendar, Location, User, Star, StarFilled, Check, Clock, Warning, Right } from '@element-plus/icons-vue'
+import { Calendar, Location, User, Star, StarFilled, Check, Clock, Warning, Right, Loading } from '@element-plus/icons-vue'
 import { handlePosterError, DEFAULT_FALLBACK_POSTER } from '@/lib/posterFallback'
 import { useModerationStore } from '@/stores/moderationStore'
+import { fetchAiSummary } from '@/lib/aiSummary'
 import { ElMessage } from 'element-plus'
 
 const props = withDefaults(
@@ -235,6 +267,40 @@ async function submitReport() {
 
 function onImgError(e: Event) {
   handlePosterError(e, props.event.category)
+}
+
+// AI one-glance summary
+const aiVisible = ref(false)
+const aiLoading = ref(false)
+const aiSummary = ref('')
+const aiError = ref('')
+
+const summaryLines = computed(() =>
+  aiSummary.value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const idx = line.indexOf(': ')
+      return idx > 0 && idx < 30 ? { label: line.slice(0, idx), text: line.slice(idx + 2) } : { label: '', text: line }
+    })
+)
+
+async function toggleAiSummary() {
+  aiVisible.value = !aiVisible.value
+  if (!aiVisible.value) return
+
+  aiError.value = ''
+  if (aiSummary.value) return
+
+  aiLoading.value = true
+  try {
+    aiSummary.value = await fetchAiSummary(props.event.id)
+  } catch (error) {
+    aiError.value = error instanceof Error ? error.message : 'AI summary is unavailable right now.'
+  } finally {
+    aiLoading.value = false
+  }
 }
 
 defineEmits<{
@@ -351,11 +417,137 @@ const categoryTagType = computed(() => {
   background: rgba(142, 68, 173, 0.9);
 }
 
-/* Bookmark & Report Action Buttons Overlay */
-.poster-actions-overlay {
+/* AI summary trigger */
+.ai-summary-trigger {
   position: absolute;
   top: 12px;
   right: 12px;
+  z-index: 3;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #6d28d9;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+.ai-summary-trigger:hover {
+  background: #7c3aed;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+/* AI summary panel */
+.ai-summary-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  background: rgba(23, 20, 44, 0.94);
+  color: #f3f0ff;
+  backdrop-filter: blur(4px);
+}
+
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ai-panel-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #c4b5fd;
+}
+
+.ai-panel-close {
+  border: none;
+  background: transparent;
+  color: #a5a0c8;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.ai-panel-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.ai-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.ai-panel-line {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.ai-line-label {
+  color: #b3a5e3;
+  font-weight: 700;
+}
+
+.ai-panel-loading {
+  color: #c4b5fd;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.ai-panel-error {
+  color: #fca5a5;
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.ai-retry-btn {
+  margin-left: 8px;
+  border: 1px solid rgba(252, 165, 165, 0.6);
+  background: transparent;
+  color: #fca5a5;
+  font-size: 0.72rem;
+  padding: 2px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.ai-retry-btn:hover {
+  background: rgba(252, 165, 165, 0.15);
+}
+
+/* Panel fade transition */
+.ai-fade-enter-active,
+.ai-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.ai-fade-enter-from,
+.ai-fade-leave-to {
+  opacity: 0;
+}
+
+/* Leave the top-right corner for the AI summary trigger */
+.poster-actions-overlay {
+  position: absolute;
+  top: 12px;
+  right: 100px;
   display: flex;
   gap: 8px;
 }

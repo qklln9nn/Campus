@@ -444,9 +444,9 @@ export const useEventStore = defineStore('event', () => {
       }
 
       // 2. Fetch User Registrations & Saved Bookmarks if logged in
-      let userRegSet = new Set<string>()
-      let userWaitlistSet = new Set<string>()
-      let userSavedSet = new Set<string>()
+      const userRegSet = new Set<string>()
+      const userWaitlistSet = new Set<string>()
+      const userSavedSet = new Set<string>()
 
       if (currentUserId) {
         const { data: regs } = await supabase

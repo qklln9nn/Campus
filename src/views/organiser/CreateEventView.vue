@@ -206,9 +206,10 @@
                     type="textarea"
                     :rows="4"
                     placeholder="Provide overview, schedule highlights, prerequisites, or special instructions..."
-                    maxlength="500"
-                    show-word-limit
                   />
+                  <div class="word-limit-hint" :class="{ over: descriptionWordCount > MAX_DESCRIPTION_WORDS }">
+                    {{ descriptionWordCount }} / {{ MAX_DESCRIPTION_WORDS }} words
+                  </div>
                 </el-form-item>
               </div>
             </el-form>
@@ -321,6 +322,12 @@ const formData = reactive({
 })
 
 // Validation Rules
+const MAX_DESCRIPTION_WORDS = 400
+
+const descriptionWordCount = computed(() =>
+  formData.description.trim().split(/\s+/).filter(Boolean).length
+)
+
 const formRules = reactive<FormRules>({
   title: [
     { required: true, message: 'Please enter event title', trigger: 'blur' },
@@ -332,7 +339,19 @@ const formRules = reactive<FormRules>({
   location: [{ required: true, message: 'Please specify location venue', trigger: 'blur' }],
   capacity: [{ required: true, message: 'Capacity is required', trigger: 'change' }],
   posterUrl: [{ required: true, message: 'Please provide poster URL or pick a preset', trigger: 'blur' }],
-  description: [{ required: true, message: 'Please provide event description', trigger: 'blur' }],
+  description: [
+    { required: true, message: 'Please provide event description', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+        if (value.trim().split(/\s+/).filter(Boolean).length > MAX_DESCRIPTION_WORDS) {
+          callback(new Error(`Description must be ${MAX_DESCRIPTION_WORDS} words or fewer`))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur',
+    },
+  ],
 })
 
 // Computed Live Preview Event Item Object
@@ -504,6 +523,19 @@ function handleCancel() {
 
 .section-title .el-icon {
   color: #6366f1;
+}
+
+.word-limit-hint {
+  width: 100%;
+  text-align: right;
+  font-size: 0.75rem;
+  color: #909399;
+  margin-top: 4px;
+}
+
+.word-limit-hint.over {
+  color: #f56c6c;
+  font-weight: 600;
 }
 
 .venue-presets {
