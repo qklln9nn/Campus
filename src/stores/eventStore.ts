@@ -135,6 +135,17 @@ export const useEventStore = defineStore('event', () => {
 
     const authStore = useAuthStore()
     const userId = authStore.currentUser?.id
+    if (!supabase || !userId) {
+      throw new Error('Please sign in to register for events.')
+    }
+
+    const snapshot = {
+      registeredCount: event.registeredCount,
+      waitlistCount: event.waitlistCount,
+      isRegistered: event.isRegistered,
+      isWaitlisted: event.isWaitlisted,
+      status: event.status,
+    }
 
     const isAvailable = event.registeredCount < event.capacity
     const targetStatus = isAvailable ? 'registered' : 'waitlisted'
@@ -153,18 +164,31 @@ export const useEventStore = defineStore('event', () => {
       event.status = 'WAITLIST'
     }
 
-    if (!supabase || !import.meta.env.VITE_SUPABASE_URL || !userId) return
-
-    try {
-      await supabase.from('registrations').insert({
+    const { data, error } = await supabase
+      .from('registrations')
+      .insert({
         event_id: eventId,
         student_id: userId,
         status: targetStatus,
         attendance_status: 'pending',
       })
-    } catch (e) {
-      console.warn('Supabase registerEvent sync error:', e)
+      .select('status')
+      .single()
+
+    if (error) {
+      Object.assign(event, snapshot)
+      throw new Error(error.message)
     }
+
+    if (data?.status === 'waitlisted' && targetStatus === 'registered') {
+      event.isRegistered = false
+      event.registeredCount--
+      event.waitlistCount++
+      event.isWaitlisted = true
+      event.status = 'WAITLIST'
+    }
+
+    return data?.status as string
   }
 
   // Actions: Persistent Cancel Registration in Supabase
@@ -174,6 +198,17 @@ export const useEventStore = defineStore('event', () => {
 
     const authStore = useAuthStore()
     const userId = authStore.currentUser?.id
+    if (!supabase || !userId) {
+      throw new Error('Please sign in first.')
+    }
+
+    const snapshot = {
+      registeredCount: event.registeredCount,
+      waitlistCount: event.waitlistCount,
+      isRegistered: event.isRegistered,
+      isWaitlisted: event.isWaitlisted,
+      status: event.status,
+    }
 
     if (event.isRegistered) {
       event.isRegistered = false
@@ -186,16 +221,15 @@ export const useEventStore = defineStore('event', () => {
       event.waitlistCount = Math.max(0, event.waitlistCount - 1)
     }
 
-    if (!supabase || !import.meta.env.VITE_SUPABASE_URL || !userId) return
+    const { error } = await supabase
+      .from('registrations')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('student_id', userId)
 
-    try {
-      await supabase
-        .from('registrations')
-        .delete()
-        .eq('event_id', eventId)
-        .eq('student_id', userId)
-    } catch (e) {
-      console.warn('Supabase cancelRegistration sync error:', e)
+    if (error) {
+      Object.assign(event, snapshot)
+      throw new Error(error.message)
     }
   }
 

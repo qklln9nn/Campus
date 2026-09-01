@@ -417,10 +417,9 @@ const categoryTagType = computed(() => {
   background: rgba(142, 68, 173, 0.9);
 }
 
-/* AI summary trigger */
 .ai-summary-trigger {
   position: absolute;
-  top: 12px;
+  top: 56px;
   right: 12px;
   z-index: 3;
   padding: 6px 12px;
@@ -543,11 +542,10 @@ const categoryTagType = computed(() => {
   opacity: 0;
 }
 
-/* Leave the top-right corner for the AI summary trigger */
 .poster-actions-overlay {
   position: absolute;
   top: 12px;
-  right: 100px;
+  right: 12px;
   display: flex;
   gap: 8px;
 }
