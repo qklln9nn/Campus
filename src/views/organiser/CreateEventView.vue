@@ -312,7 +312,7 @@ const presetPosters = [
 const formData = reactive({
   title: '',
   category: 'Tech' as CategoryType,
-  organiserName: 'School of Computer Science',
+  organiserName: '',
   dateTimeRange: [] as string[],
   location: '',
   capacity: 100,

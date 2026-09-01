@@ -285,31 +285,37 @@ function openRegistrationDialog(event: EventItem) {
   showRegistrationModal.value = true
 }
 
-// Confirm Registration Handle
-function confirmRegistration() {
+async function confirmRegistration() {
   if (!selectedEvent.value) return
 
   isSubmitting.value = true
-  setTimeout(() => {
-    const isWaitlist = selectedEvent.value!.registeredCount >= selectedEvent.value!.capacity
-    eventStore.registerEvent(selectedEvent.value!.id)
-    isSubmitting.value = false
+  const event = selectedEvent.value
+  try {
+    const finalStatus = await eventStore.registerEvent(event.id)
     showRegistrationModal.value = false
 
-    if (isWaitlist) {
+    if (finalStatus === 'waitlisted') {
       ElMessage({
         type: 'warning',
-        message: `Successfully joined waitlist for "${selectedEvent.value!.title}".`,
+        message: `Added to waitlist queue for "${event.title}".`,
         duration: 4000,
       })
     } else {
       ElMessage({
         type: 'success',
-        message: `Registration confirmed for "${selectedEvent.value!.title}"! Access pass generated.`,
+        message: `Registration confirmed for "${event.title}"! Access pass generated.`,
         duration: 4000,
       })
     }
-  }, 400)
+  } catch (e) {
+    ElMessage({
+      type: 'error',
+      message: e instanceof Error ? e.message : 'Registration failed. Please try again.',
+      duration: 5000,
+    })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 // Handle Cancel Registration Confirmation
