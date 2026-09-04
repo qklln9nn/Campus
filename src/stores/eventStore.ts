@@ -14,6 +14,16 @@ export interface AttendeeItem {
   waitlistRank?: number
 }
 
+interface RawAttendeeRow {
+  registration_id: string
+  student_id: string
+  full_name: string | null
+  email: string | null
+  registration_status: 'registered' | 'waitlisted' | 'cancelled'
+  attendance_status: 'pending' | 'attended' | 'absent'
+  registered_at: string
+}
+
 function generateValidUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
@@ -29,21 +39,13 @@ export const useEventStore = defineStore('event', () => {
   // Real Events Dataset (Pulled dynamically from Supabase)
   const events = ref<EventItem[]>([])
 
-  // Mock Event Attendees Registry
-  const eventAttendeesMap = ref<Record<string, AttendeeItem[]>>({
-    'evt-001': [
-      { id: 'st-101', name: 'Emily Chen', studentId: 'S2024001', email: 'emily.c@campus.edu', registeredAt: '2026-10-10 14:20', status: 'REGISTERED' },
-      { id: 'st-102', name: 'Marcus Vance', studentId: 'S2024045', email: 'm.vance@campus.edu', registeredAt: '2026-10-11 09:15', status: 'CHECKED_IN' },
-      { id: 'st-103', name: 'Sofia Rodriguez', studentId: 'S2024089', email: 'sofia.r@campus.edu', registeredAt: '2026-10-12 16:00', status: 'REGISTERED' },
-      { id: 'st-104', name: 'Liam Taylor', studentId: 'S2024112', email: 'liam.t@campus.edu', registeredAt: '2026-10-14 11:30', status: 'REGISTERED' }
-    ],
-    'evt-002': [
-      { id: 'st-201', name: 'David Kim', studentId: 'S2024220', email: 'dkim@campus.edu', registeredAt: '2026-10-05 10:00', status: 'REGISTERED' },
-      { id: 'st-202', name: 'Jessica Alba', studentId: 'S2024301', email: 'jalba@campus.edu', registeredAt: '2026-10-06 15:45', status: 'REGISTERED' },
-      { id: 'st-203', name: 'Brian Cox', studentId: 'S2024388', email: 'bcox@campus.edu', registeredAt: '2026-10-18 19:20', status: 'WAITLIST', waitlistRank: 1 },
-      { id: 'st-204', name: 'Chloe Bennett', studentId: 'S2024410', email: 'chloe.b@campus.edu', registeredAt: '2026-10-19 08:10', status: 'WAITLIST', waitlistRank: 2 }
-    ]
-  })
+// Attendees loaded from the backend and grouped by event ID
+const eventAttendeesMap = ref<Record<string, AttendeeItem[]>>({})
+
+// Request state for the organiser attendee drawer
+const attendeesLoading = ref(false)
+const attendeesError = ref('')
+
 
   // Filter and Search state
   const searchQuery = ref('')
@@ -623,6 +625,71 @@ export const useEventStore = defineStore('event', () => {
     return { success: true }
   }
 
+  async function fetchEventAttendees(eventId: string): Promise<void> {
+  attendeesLoading.value = true
+  attendeesError.value = ''
+
+  try {
+    const { data, error } = await supabase.rpc(
+      'get_event_attendees',
+      {
+        p_event_id: eventId,
+      },
+    )
+
+    if (error) {
+      throw error
+    }
+
+    const rows = (data ?? []) as RawAttendeeRow[]
+    let waitlistRank = 0
+
+    eventAttendeesMap.value[eventId] = rows
+      .filter((row) => row.registration_status !== 'cancelled')
+      .map((row) => {
+        const isWaitlisted =
+          row.registration_status === 'waitlisted'
+
+        if (isWaitlisted) {
+          waitlistRank += 1
+        }
+
+        let status: AttendeeItem['status'] = 'REGISTERED'
+
+        if (isWaitlisted) {
+          status = 'WAITLIST'
+        } else if (row.attendance_status === 'attended') {
+          status = 'CHECKED_IN'
+        }
+
+        return {
+          id: row.registration_id,
+          name: row.full_name || 'Unknown student',
+          studentId: row.student_id,
+          email: row.email || '',
+          registeredAt: new Date(
+            row.registered_at,
+          ).toLocaleString(),
+          status,
+          waitlistRank: isWaitlisted
+            ? waitlistRank
+            : undefined,
+        }
+      })
+  } catch (error) {
+    eventAttendeesMap.value[eventId] = []
+
+    attendeesError.value =
+      error &&
+      typeof error === 'object' &&
+      'message' in error
+        ? String(error.message)
+        : 'Unable to load attendees.'
+  } finally {
+    attendeesLoading.value = false
+  }
+}
+
   function getAttendees(eventId: string): AttendeeItem[] {
     return eventAttendeesMap.value[eventId] || []
   }
@@ -667,6 +734,9 @@ export const useEventStore = defineStore('event', () => {
     registerEvent,
     cancelRegistration,
     // Organiser Portal exports
+    attendeesLoading,
+    attendeesError,
+    fetchEventAttendees,
     addEvent,
     updateEvent,
     deleteEvent,
