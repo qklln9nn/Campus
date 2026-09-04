@@ -109,7 +109,7 @@
                   class="card-cover-img"
                   @error="e => handlePosterError(e, event.category)"
                 />
-                
+
                 <div class="cover-overlay-top">
                   <el-tag size="small" effect="dark" type="info" class="category-chip">
                     {{ event.category }}
@@ -349,7 +349,33 @@
         size="600px"
         destroy-on-close
       >
-        <div v-if="currentEvent" class="drawer-content">
+        <el-skeleton
+  v-if="eventStore.attendeesLoading"
+  :rows="5"
+  animated
+/>
+
+<div
+  v-else-if="eventStore.attendeesError"
+  class="attendee-error-state"
+>
+  <el-alert
+    :title="eventStore.attendeesError"
+    type="error"
+    show-icon
+    :closable="false"
+  />
+
+  <el-button
+    type="primary"
+    plain
+    @click="retryAttendees"
+  >
+    Retry
+  </el-button>
+</div>
+
+<div v-else-if="currentEvent" class="drawer-content">
           <div class="drawer-summary-box">
             <div class="stat-item">
               <span class="stat-num">{{ currentEvent.registeredCount }}</span>
@@ -668,9 +694,21 @@ function handleDelete(event: EventItem) {
     .catch(() => {})
 }
 
-function openAttendeesDrawer(event: EventItem) {
+async function openAttendeesDrawer(
+  event: EventItem,
+): Promise<void> {
   currentEvent.value = event
   showAttendeesDrawer.value = true
+
+  await eventStore.fetchEventAttendees(event.id)
+}
+
+async function retryAttendees(): Promise<void> {
+  if (!currentEvent.value) return
+
+  await eventStore.fetchEventAttendees(
+    currentEvent.value.id,
+  )
 }
 
 function promoteStudent(studentId: string) {
@@ -703,6 +741,12 @@ function sendBroadcast() {
 </script>
 
 <style scoped>
+.attendee-error-state {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: flex-start;
+}
 .organiser-dashboard {
   display: flex;
   flex-direction: column;
