@@ -83,40 +83,54 @@ const router = createRouter({
 /**
  * Global Navigation Guard: Strict Role-Based Access Control (RBAC)
  */
-router.beforeEach((to, _from, next) => {
-  // Lazy import authStore to avoid circular dependency
+router.beforeEach((to) => {
   const authStore = useAuthStore()
 
   // 1. Unauthenticated Protection
   const publicRoutes = ['home', 'login']
-  if (!authStore.isAuthenticated && !publicRoutes.includes(to.name as string)) {
+
+  if (
+    !authStore.isAuthenticated &&
+    !publicRoutes.includes(to.name as string)
+  ) {
     ElMessage.info('Please sign in first to access your portal.')
-    return next({ name: 'login' })
+    return { name: 'login' }
   }
 
   // 2. Role-Based Access Enforcement
   if (authStore.isAuthenticated) {
     const role = authStore.userRole
 
-    // Organiser Portal Guidance: Auto-redirect Organisers to Organiser Console
+    // Redirect organisers to their own dashboard
     if (to.path === '/dashboard' && role === 'ORGANISER') {
-      return next({ path: '/organiser/dashboard' })
+      return { path: '/organiser/dashboard' }
     }
 
-    // Organiser Routes Protection: Prevent Student Access
-    if ((to.path.startsWith('/organiser') || to.path === '/create') && role === 'STUDENT') {
-      ElMessage.error('Access Denied: Student accounts cannot access the Organiser Console.')
-      return next({ path: '/dashboard' })
+    // Prevent students from entering organiser routes
+    if (
+      (to.path.startsWith('/organiser') || to.path === '/create') &&
+      role === 'STUDENT'
+    ) {
+      ElMessage.error(
+        'Access Denied: Student accounts cannot access the Organiser Console.',
+      )
+      return { path: '/dashboard' }
     }
 
-    // Admin Routes Protection: Prevent Non-Admin Access
+    // Prevent non-admin users from entering admin routes
     if (to.path.startsWith('/admin') && role !== 'ADMIN') {
       ElMessage.error('Access Denied: Administrator role required.')
-      return next({ path: role === 'ORGANISER' ? '/organiser/dashboard' : '/dashboard' })
+
+      return {
+        path:
+          role === 'ORGANISER'
+            ? '/organiser/dashboard'
+            : '/dashboard',
+      }
     }
   }
 
-  next()
+  return true
 })
 
 export default router

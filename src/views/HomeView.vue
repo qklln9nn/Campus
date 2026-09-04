@@ -336,7 +336,7 @@ import {
   Calendar,
   Location,
   User,
-  Plus,
+  Management,
   UserFilled,
   Lightning,
   Compass,
