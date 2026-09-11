@@ -1,5 +1,5 @@
 <template>
-  <StudentLayout>
+  <component :is="profileLayout">
     <div class="profile-page">
       <!-- Hidden file input for local avatar upload -->
       <input
@@ -31,7 +31,7 @@
               </el-tag>
             </div>
             <p class="user-subtext">
-              <span class="user-id">ID: {{ profileForm.studentId || 'STU-2026-8942' }}</span> • 
+              <span class="user-id">ID: {{ profileForm.studentId || 'Not assigned' }}</span> •
               <span class="user-email">{{ profileForm.email }}</span>
             </p>
             <p class="user-bio-preview" :class="{ 'empty-bio': !profileForm.bio }">
@@ -318,12 +318,13 @@
         </template>
       </el-dialog>
     </div>
-  </StudentLayout>
+  </component>
 </template>
 
 <script setup lang="ts">
 import StudentLayout from '@/layouts/StudentLayout.vue'
-import { ref, reactive, nextTick } from 'vue'
+import OrganiserLayout from '@/layouts/OrganiserLayout.vue'
+import { computed, ref, reactive, nextTick, watch } from 'vue'
 import { 
   User, 
   UserFilled, 
@@ -343,6 +344,9 @@ import { useEventStore } from '@/stores/eventStore'
 
 const authStore = useAuthStore()
 const eventStore = useEventStore()
+const profileLayout = computed(() =>
+  authStore.userRole === 'ORGANISER' ? OrganiserLayout : StudentLayout,
+)
 
 const isSaving = ref(false)
 const showAvatarPicker = ref(false)
@@ -350,17 +354,17 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
 // Local profile state initialized from authStore
 const profileForm = reactive({
-  name: authStore.currentUser?.name || 'Alex Johnson',
-  email: authStore.currentUser?.email || 'alex.johnson@campus.edu',
+  name: '',
+  email: '',
   role: authStore.currentUser?.role || 'STUDENT',
-  studentId: authStore.currentUser?.studentId || 'STU-2026-8942',
-  avatar: authStore.currentUser?.avatar || '',
-  major: authStore.currentUser?.major || 'Computer Science & Software',
-  grade: authStore.currentUser?.grade || 'Senior (Year 4)',
-  bio: authStore.currentUser?.bio || '',
-  interests: [...(authStore.currentUser?.interests || ['AI & Machine Learning', 'Hackathons', 'Robotics & Hardware'])],
-  clubs: [...(authStore.currentUser?.clubs || ['Google Developer Student Club', 'ACM Student Chapter'])],
-  availableTime: [...(authStore.currentUser?.availableTime || ['Weekday Evenings (After 5 PM)', 'Saturday All Day'])],
+  studentId: '',
+  avatar: '',
+  major: '',
+  grade: '',
+  bio: '',
+  interests: [] as string[],
+  clubs: [] as string[],
+  availableTime: [] as string[],
   notificationPreferences: {
     emailAlerts: authStore.currentUser?.notificationPreferences?.emailAlerts ?? true,
     pushNotifications: authStore.currentUser?.notificationPreferences?.pushNotifications ?? true,
@@ -369,6 +373,26 @@ const profileForm = reactive({
     weeklyDigest: authStore.currentUser?.notificationPreferences?.weeklyDigest ?? false,
   }
 })
+
+watch(
+  () => authStore.currentUser,
+  (user) => {
+    if (!user) return
+    profileForm.name = user.name
+    profileForm.email = user.email
+    profileForm.role = user.role
+    profileForm.studentId = user.studentId ?? ''
+    profileForm.avatar = user.avatar ?? ''
+    profileForm.major = user.major
+    profileForm.grade = user.grade
+    profileForm.bio = user.bio
+    profileForm.interests = [...user.interests]
+    profileForm.clubs = [...user.clubs]
+    profileForm.availableTime = [...user.availableTime]
+    profileForm.notificationPreferences = { ...user.notificationPreferences }
+  },
+  { immediate: true },
+)
 
 // Trigger local file selection dialog
 function triggerFileInput() {
@@ -473,10 +497,10 @@ function selectAvatar(url: string) {
   profileForm.avatar = url
 }
 
-function saveProfile() {
+async function saveProfile() {
   isSaving.value = true
-  setTimeout(() => {
-    authStore.updateProfile({
+  try {
+    await authStore.updateProfile({
       name: profileForm.name,
       avatar: profileForm.avatar,
       major: profileForm.major,
@@ -487,9 +511,12 @@ function saveProfile() {
       availableTime: profileForm.availableTime,
       notificationPreferences: profileForm.notificationPreferences,
     })
-    isSaving.value = false
     ElMessage.success('Profile updated successfully! All preferences saved.')
-  }, 400)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to update your profile.')
+  } finally {
+    isSaving.value = false
+  }
 }
 </script>
 

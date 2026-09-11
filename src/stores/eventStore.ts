@@ -625,6 +625,19 @@ const attendeesError = ref('')
     return { success: true }
   }
 
+  // Clear browser-only state when the authenticated account changes. This must
+  // never call registration APIs because signing out must not cancel bookings.
+  function resetUserActivity() {
+    events.value.forEach((event) => {
+      event.isRegistered = false
+      event.isWaitlisted = false
+      event.isBookmarked = false
+    })
+    eventAttendeesMap.value = {}
+    attendeesError.value = ''
+    activeTab.value = 'all'
+  }
+
   async function fetchEventAttendees(eventId: string): Promise<void> {
   attendeesLoading.value = true
   attendeesError.value = ''
@@ -733,6 +746,7 @@ const attendeesError = ref('')
     toggleBookmark,
     registerEvent,
     cancelRegistration,
+    resetUserActivity,
     // Organiser Portal exports
     attendeesLoading,
     attendeesError,

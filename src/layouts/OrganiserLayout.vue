@@ -114,6 +114,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/authStore'
 import { useEventStore } from '@/stores/eventStore'
 import {
@@ -134,9 +135,14 @@ const router = useRouter()
 const authStore = useAuthStore()
 const eventStore = useEventStore()
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
+async function handleLogout() {
+  try {
+    await authStore.logout()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to sign out.')
+  } finally {
+    await router.replace('/login')
+  }
 }
 
 const isSidebarCollapsed = ref(false)
