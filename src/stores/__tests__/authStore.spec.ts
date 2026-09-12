@@ -4,17 +4,17 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  getSession: vi.fn(),
-  signInWithPassword: vi.fn(),
-  signUp: vi.fn(),
-  signOut: vi.fn(),
-  resetPasswordForEmail: vi.fn(),
-  updateUser: vi.fn(),
-  onAuthStateChange: vi.fn(),
-  profileSingle: vi.fn(),
-  profileUpdateSingle: vi.fn(),
-  from: vi.fn(),
-  unsubscribe: vi.fn(),
+  getSession: vi.fn<() => Promise<unknown>>(),
+  signInWithPassword: vi.fn<() => Promise<unknown>>(),
+  signUp: vi.fn<() => Promise<unknown>>(),
+  signOut: vi.fn<() => Promise<unknown>>(),
+  resetPasswordForEmail: vi.fn<() => Promise<unknown>>(),
+  updateUser: vi.fn<() => Promise<unknown>>(),
+  onAuthStateChange: vi.fn<() => unknown>(),
+  profileSingle: vi.fn<() => Promise<unknown>>(),
+  profileUpdateSingle: vi.fn<() => Promise<unknown>>(),
+  from: vi.fn<(table: string) => Record<string, unknown>>(),
+  unsubscribe: vi.fn<() => void>(),
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -48,6 +48,7 @@ const studentProfile = {
   email: 'student@campus.edu',
   full_name: 'Test Student',
   role: 'student',
+  account_status: 'active',
   avatar_url: null,
   student_id: null,
   major: 'Computer Science',
@@ -116,6 +117,21 @@ describe('auth store integration', () => {
     expect(store.isAuthenticated).toBe(true)
     expect(store.userRole).toBe('STUDENT')
     expect(store.currentUser?.name).toBe('Test Student')
+  })
+
+  it('rejects a suspended profile even when Supabase Auth has a session', async () => {
+    mocks.getSession.mockResolvedValueOnce({ data: { session: studentSession }, error: null })
+    mocks.profileSingle.mockResolvedValueOnce({
+      data: { ...studentProfile, account_status: 'suspended' },
+      error: null,
+    })
+    const store = useAuthStore()
+
+    await store.initializeAuth()
+
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.errorMessage).toContain('suspended')
+    expect(mocks.signOut).toHaveBeenCalledWith({ scope: 'local' })
   })
 
   it('never requests a privileged role during self-registration', async () => {

@@ -5,6 +5,7 @@ export interface ProfileRow {
   email: string | null
   full_name: string | null
   role: 'student' | 'organiser' | 'admin'
+  account_status: 'active' | 'suspended'
   avatar_url: string | null
   student_id: string | null
   major: string | null

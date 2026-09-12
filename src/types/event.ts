@@ -1,4 +1,4 @@
-export type CategoryType = 'Academic' | 'Club' | 'Sports' | 'Tech' | 'Cultural' | 'Career';
+export type CategoryType = string;
 
 export type EventStatus =
   | 'OPEN'
