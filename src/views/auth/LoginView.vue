@@ -21,6 +21,15 @@
           <p class="subtitle">Join campus activities, connect with clubs, and manage events.</p>
         </div>
 
+        <el-alert
+          v-if="registrationNotice"
+          :title="registrationNotice"
+          :type="registrationNoticeType"
+          show-icon
+          :closable="false"
+          class="registration-notice"
+        />
+
         <el-tabs v-model="activeTab" class="auth-tabs" stretch>
           <!-- Sign In Tab -->
           <el-tab-pane label="Sign In" name="signin">
@@ -32,14 +41,6 @@
               class="auth-form"
               @submit.prevent="handleLogin"
             >
-              <el-form-item label="Portal Role" prop="role">
-                <el-select v-model="loginForm.role" placeholder="Select portal role" class="full-width">
-                  <el-option label="🎓 Student" value="STUDENT" />
-                  <el-option label="📢 Event Organiser" value="ORGANISER" />
-                  <el-option label="⚙️ System Administrator" value="ADMIN" />
-                </el-select>
-              </el-form-item>
-
               <el-form-item label="Campus Email" prop="email">
                 <el-input 
                   v-model.trim="loginForm.email" 
@@ -59,8 +60,8 @@
               </el-form-item>
 
               <div class="form-options">
-                <el-checkbox v-model="loginForm.rememberMe">Remember me</el-checkbox>
-                <a href="#" class="forgot-link" @click.prevent="showForgotNotice">Forgot password?</a>
+                <span></span>
+                <a href="#" class="forgot-link" @click.prevent="handleForgotPassword">Forgot password?</a>
               </div>
 
               <el-button 
@@ -68,7 +69,7 @@
                 size="large" 
                 class="auth-submit-btn" 
                 :loading="isSubmitting"
-                @click="handleLogin"
+                native-type="submit"
               >
                 Sign In
               </el-button>
@@ -100,7 +101,7 @@
                 <el-input v-model.trim="registerForm.email" placeholder="student@campus.edu" :prefix-icon="Message" />
               </el-form-item>
 
-              <div class="form-row" v-if="registerForm.role === 'STUDENT'">
+              <div class="form-row">
                 <el-form-item label="Major" prop="major" class="half-width">
                   <el-select v-model="registerForm.major" placeholder="Select major" placement="bottom" popper-class="scrollable-select-popper">
                     <el-option label="Computer Science & Software" value="Computer Science & Software" />
@@ -156,9 +157,9 @@
                 size="large" 
                 class="auth-submit-btn"
                 :loading="isSubmitting"
-                @click="handleRegister"
+                native-type="submit"
               >
-                Create Account & Sign In
+                Create Student Account
               </el-button>
             </el-form>
           </el-tab-pane>
@@ -173,7 +174,7 @@ import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Calendar, Back, User, Lock, Message } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { useAuthStore, type UserRole } from '@/stores/authStore'
+import { getRoleHomePath, useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
 const route = useRoute()
@@ -181,14 +182,24 @@ const authStore = useAuthStore()
 
 const activeTab = ref(route.query.tab === 'register' ? 'register' : 'signin')
 const isSubmitting = ref(false)
+const registrationNoticeType = ref<'success' | 'warning'>(
+  route.query.recovery === 'invalid' ? 'warning' : 'success',
+)
+const registrationNotice = ref(
+  route.query.recovery === 'invalid'
+    ? 'This password recovery link is invalid or expired. Request a new one.'
+    : route.query.confirmed === '1'
+      ? 'Email confirmed. You can now sign in.'
+      : route.query.passwordUpdated === '1'
+        ? 'Password updated. Sign in with your new password.'
+        : '',
+)
 
 // Login Form Data
 const loginFormRef = ref<FormInstance>()
 const loginForm = reactive({
   email: '',
   password: '',
-  role: 'STUDENT' as UserRole,
-  rememberMe: true,
 })
 
 // Robust Custom Email Validator (Supports uppercase, mixed case & ignores whitespace)
@@ -211,7 +222,6 @@ const loginRules: FormRules = {
     { required: true, message: 'Please input password', trigger: 'blur' },
     { min: 6, message: 'Password must be at least 6 characters', trigger: 'blur' }
   ],
-  role: [{ required: true, message: 'Please select a role', trigger: 'change' }]
 }
 
 // Register Form Data
@@ -219,7 +229,6 @@ const registerFormRef = ref<FormInstance>()
 const registerForm = reactive({
   name: '',
   email: '',
-  role: 'STUDENT' as UserRole,
   major: '',
   grade: '',
   password: '',
@@ -250,84 +259,92 @@ const registerRules: FormRules = {
   ]
 }
 
-function quickFill(role: UserRole) {
-  loginForm.role = role
-  if (role === 'STUDENT') {
-    loginForm.email = 'alex.johnson@campus.edu'
-  } else if (role === 'ORGANISER') {
-    loginForm.email = 'sarah.jenkins@campus.edu'
-  } else {
-    loginForm.email = 'admin@campus.edu'
+function errorText(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
+async function validateForm(form: FormInstance | undefined): Promise<boolean> {
+  if (!form) return false
+  return form.validate().catch(() => false)
+}
+
+function safeRedirectPath(): string | null {
+  const redirect = route.query.redirect
+  if (typeof redirect !== 'string' || !redirect.startsWith('/') || redirect.startsWith('//')) {
+    return null
   }
-  handleLogin()
+  return redirect
 }
 
 async function handleLogin() {
-  if (!loginFormRef.value) return
-  await loginFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    isSubmitting.value = true
-    const res = await authStore.login(loginForm.email, loginForm.password, loginForm.role)
+  if (!(await validateForm(loginFormRef.value))) return
+
+  isSubmitting.value = true
+  try {
+    const profile = await authStore.login(loginForm.email, loginForm.password)
+    ElMessage.success(`Welcome back, ${profile.name}.`)
+    await router.replace(safeRedirectPath() ?? getRoleHomePath(profile.role))
+  } catch (error) {
+    ElMessage.error(errorText(error, 'Unable to sign in.'))
+  } finally {
     isSubmitting.value = false
-
-    if (!res.success) {
-      ElMessage.error(res.message || 'Login failed. Please check your credentials or register first.')
-      return
-    }
-
-    // Authority Role Check: Enforce database role instead of dropdown choice
-    const actualRole = authStore.userRole
-
-    if (loginForm.role !== actualRole) {
-      ElMessage.warning(`Role Mismatch: Your account is registered as ${actualRole}. Redirecting to your assigned portal.`)
-    } else {
-      ElMessage.success(`Welcome back! Logged in as ${actualRole.toLowerCase()}.`)
-    }
-
-    // Redirect strictly according to authoritative database role
-    if (actualRole === 'ORGANISER') {
-      router.push('/organiser/dashboard')
-    } else if (actualRole === 'ADMIN') {
-      router.push('/admin/dashboard')
-    } else {
-      router.push('/dashboard')
-    }
-  })
+  }
 }
 
 async function handleRegister() {
-  if (!registerFormRef.value) return
   if (!registerForm.agreeTerms) {
     ElMessage.warning('Please agree to the Campus Terms & Privacy Policy before registering.')
     return
   }
+  if (!(await validateForm(registerFormRef.value))) return
 
-  await registerFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    isSubmitting.value = true
-    const res = await authStore.register({
+  isSubmitting.value = true
+  registrationNoticeType.value = 'success'
+  registrationNotice.value = ''
+  try {
+    const result = await authStore.register({
       name: registerForm.name,
       email: registerForm.email,
       password: registerForm.password,
-      role: registerForm.role,
       major: registerForm.major,
       grade: registerForm.grade,
     })
-    isSubmitting.value = false
 
-    if (!res.success) {
-      ElMessage.error(res.message || 'Registration failed.')
+    if (result.requiresEmailConfirmation) {
+      registrationNotice.value =
+        'Account created. Check your campus email to confirm it before signing in.'
+      loginForm.email = registerForm.email
+      loginForm.password = ''
+      activeTab.value = 'signin'
+      ElMessage.success('Confirmation email sent.')
       return
     }
 
     ElMessage.success('Account created successfully!')
-
-    router.push('/dashboard')
-  })
+    await router.replace(getRoleHomePath(result.profile?.role))
+  } catch (error) {
+    ElMessage.error(errorText(error, 'Unable to create your account.'))
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
-function showForgotNotice() {
-  ElMessage.info('Password reset instructions have been dispatched to your campus email.')
+async function handleForgotPassword() {
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginForm.email.trim())
+  if (!emailValid) {
+    ElMessage.warning('Enter your campus email first, then request a password reset.')
+    return
+  }
+
+  isSubmitting.value = true
+  try {
+    await authStore.requestPasswordReset(loginForm.email)
+    ElMessage.success('Password reset instructions have been sent if that account exists.')
+  } catch (error) {
+    ElMessage.error(errorText(error, 'Unable to send the password reset email.'))
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -431,6 +448,10 @@ function showForgotNotice() {
   font-size: 0.95rem;
   font-weight: 600;
   padding: 12px 0;
+}
+
+.registration-notice {
+  margin-top: 16px;
 }
 
 .auth-form {

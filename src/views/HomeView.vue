@@ -27,7 +27,7 @@
             <el-button type="primary" class="login-btn" @click="handleViewAllEvents">
               <el-icon class="el-icon--left"><Compass /></el-icon> Student Portal
             </el-button>
-            <el-button type="info" plain class="logout-btn" @click="authStore.logout()">
+            <el-button type="info" plain class="logout-btn" @click="handleLogout">
               Sign Out
             </el-button>
           </template>
@@ -352,6 +352,14 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const router = useRouter()
 const eventStore = useEventStore()
 const authStore = useAuthStore()
+
+async function handleLogout() {
+  try {
+    await authStore.logout()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to sign out.')
+  }
+}
 
 // Modal State
 const showRegistrationModal = ref(false)
