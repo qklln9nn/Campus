@@ -173,7 +173,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Calendar, Back, User, Lock, Message } from '@element-plus/icons-vue'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, type FormInstance, type FormItemRule, type FormRules } from 'element-plus'
 import { getRoleHomePath, useAuthStore } from '@/stores/authStore'
 
 const router = useRouter()
@@ -203,7 +203,7 @@ const loginForm = reactive({
 })
 
 // Robust Custom Email Validator (Supports uppercase, mixed case & ignores whitespace)
-const validateEmail = (_rule: any, value: string, callback: any) => {
+const validateEmail = (_rule: FormItemRule, value: string, callback: (error?: Error) => void) => {
   if (!value || !value.trim()) {
     callback(new Error('Email is required'))
   } else {

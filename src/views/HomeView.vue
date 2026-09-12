@@ -103,15 +103,15 @@
         <div class="categories-grid">
           <div
             v-for="cat in categories"
-            :key="cat.name"
+            :key="cat.slug"
             class="category-card"
-            @click="navigateToCategory(cat.name)"
+            @click="navigateToCategory(cat.slug, cat.name)"
           >
             <div class="cat-icon-wrap" :style="{ background: cat.bg, color: cat.color }">
               <component :is="cat.icon" />
             </div>
             <h3 class="cat-name">{{ cat.name }}</h3>
-            <p class="cat-count">{{ getCategoryCount(cat.name) }} Events</p>
+            <p class="cat-count">{{ getCategoryCount(cat.slug) }} Events</p>
           </div>
         </div>
       </div>
@@ -147,6 +147,7 @@
                   :event="event"
                   hide-action-btn
                   hide-overlay-actions
+                  @register-event="openRegistrationDialog"
                 />
               </div>
             </el-col>
@@ -324,13 +325,18 @@ import { useRouter } from 'vue-router'
 import EventCard from '@/components/EventCard.vue'
 import { useEventStore } from '@/stores/eventStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useCategoryStore } from '@/stores/categoryStore'
+import { categorySlug } from '@/lib/category'
 import type { EventItem, CategoryType } from '@/types/event'
 
 onMounted(() => {
   eventStore.searchQuery = ''
   eventStore.selectedCategory = 'All'
   eventStore.activeTab = 'all'
-  eventStore.fetchEventsFromSupabase()
+  void Promise.allSettled([
+    eventStore.fetchEventsFromSupabase(),
+    categoryStore.fetchCategories(),
+  ])
 })
 import {
   Calendar,
@@ -347,11 +353,12 @@ import {
   Trophy,
   Ticket
 } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const eventStore = useEventStore()
 const authStore = useAuthStore()
+const categoryStore = useCategoryStore()
 
 async function handleLogout() {
   try {
@@ -367,14 +374,20 @@ const selectedEvent = ref<EventItem | null>(null)
 const isSubmitting = ref(false)
 
 // Category Definitions with Icons
-const categories: { name: CategoryType; icon: Component; bg: string; color: string }[] = [
-  { name: 'Academic', icon: Reading, bg: '#eff6ff', color: '#2563eb' },
-  { name: 'Tech', icon: Lightning, bg: '#f0fdf4', color: '#16a34a' },
-  { name: 'Sports', icon: Trophy, bg: '#fff7ed', color: '#ea580c' },
-  { name: 'Cultural', icon: Collection, bg: '#faf5ff', color: '#9333ea' },
-  { name: 'Club', icon: Ticket, bg: '#fdf2f8', color: '#db2777' },
-  { name: 'Career', icon: User, bg: '#f1f5f9', color: '#475569' }
+const categoryStyles: { icon: Component; bg: string; color: string }[] = [
+  { icon: Reading, bg: '#eff6ff', color: '#2563eb' },
+  { icon: Lightning, bg: '#f0fdf4', color: '#16a34a' },
+  { icon: Trophy, bg: '#fff7ed', color: '#ea580c' },
+  { icon: Collection, bg: '#faf5ff', color: '#9333ea' },
+  { icon: Ticket, bg: '#fdf2f8', color: '#db2777' },
+  { icon: User, bg: '#f1f5f9', color: '#475569' },
 ]
+const categories = computed(() =>
+  categoryStore.activeCategories.map((category, index) => ({
+    ...category,
+    ...(categoryStyles[index % categoryStyles.length] ?? categoryStyles[0]!),
+  })),
+)
 
 // Total Registrations Count Across All Events
 const totalRegistrations = computed(() => {
@@ -388,7 +401,7 @@ const featuredEvents = computed(() => {
 
 // Category Events Count Helper
 function getCategoryCount(catName: CategoryType) {
-  return eventStore.events.filter((e: EventItem) => e.category === catName).length
+  return eventStore.events.filter((event: EventItem) => categorySlug(event.category) === catName).length
 }
 
 // Smart Navigation: Check Login State before View All or Category Filter
@@ -412,10 +425,10 @@ function handleOrganiserPortal() {
 }
 
 // Navigate to Category with Login Inspection
-function navigateToCategory(catName: CategoryType) {
+function navigateToCategory(catName: CategoryType, label: string) {
   eventStore.selectedCategory = catName
   if (!authStore.isAuthenticated) {
-    ElMessage.info(`Please sign in first to explore ${catName} events.`)
+    ElMessage.info(`Please sign in first to explore ${label} events.`)
     router.push('/login')
   } else {
     router.push('/dashboard')
@@ -423,7 +436,8 @@ function navigateToCategory(catName: CategoryType) {
 }
 
 // Card Click Handle: Redirect to Login or Student Dashboard
-function handleCardClick(_event: EventItem) {
+function handleCardClick(event?: EventItem) {
+  void event
   if (!authStore.isAuthenticated) {
     ElMessage.info('Please sign in first to view event details and register.')
     router.push('/login')
@@ -475,23 +489,6 @@ async function confirmRegistration() {
   }
 }
 
-function handleCancelRegistration(eventId: string) {
-  const event = eventStore.events.find((e: EventItem) => e.id === eventId)
-  if (!event) return
-
-  ElMessageBox.confirm(
-    `Cancel registration for "${event.title}"?`,
-    'Confirm Action',
-    { confirmButtonText: 'Yes, Proceed', cancelButtonText: 'Keep Spot', type: 'warning' }
-  ).then(async () => {
-    try {
-      await eventStore.cancelRegistration(eventId)
-      ElMessage({ type: 'info', message: 'Registration updated.' })
-    } catch (error) {
-      ElMessage.error(error instanceof Error ? error.message : 'Unable to cancel registration.')
-    }
-  }).catch(() => {})
-}
 </script>
 
 <style scoped>

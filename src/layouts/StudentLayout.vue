@@ -199,11 +199,11 @@
             </template>
             <el-menu-item 
               v-for="cat in categories" 
-              :key="cat" 
-              :index="`cat-${cat}`"
-              @click="setCategory(cat)"
+              :key="cat.slug"
+              :index="`cat-${cat.slug}`"
+              @click="setCategory(cat.slug)"
             >
-              <span>{{ cat }}</span>
+              <span>{{ cat.name }}</span>
             </el-menu-item>
           </el-sub-menu>
         </el-menu>
@@ -233,12 +233,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useEventStore } from '@/stores/eventStore'
 import { useAuthStore } from '@/stores/authStore'
-import type { CategoryType } from '@/types/event'
+import { useCategoryStore } from '@/stores/categoryStore'
 import {
   Calendar,
   Search,
@@ -253,13 +253,13 @@ import {
   ArrowDown,
   User,
   UserFilled,
-  Setting,
   SwitchButton,
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const eventStore = useEventStore()
 const authStore = useAuthStore()
+const categoryStore = useCategoryStore()
 
 async function handleLogout() {
   try {
@@ -272,7 +272,7 @@ async function handleLogout() {
 }
 const isSidebarCollapsed = ref(false)
 
-const categories: CategoryType[] = ['Academic', 'Club', 'Sports', 'Tech', 'Cultural', 'Career']
+const categories = computed(() => categoryStore.activeCategories)
 
 // Dynamic Notifications State
 interface NotificationItem {
@@ -324,13 +324,17 @@ function setTab(tab: 'all' | 'registered' | 'waitlisted' | 'saved') {
   }
 }
 
-function setCategory(cat: CategoryType) {
+function setCategory(cat: string) {
   eventStore.selectedCategory = cat
   eventStore.activeTab = 'all'
   if (router.currentRoute.value.path !== '/dashboard') {
     router.push('/dashboard')
   }
 }
+
+onMounted(() => {
+  if (categoryStore.categories.length === 0) void categoryStore.fetchCategories().catch(() => undefined)
+})
 </script>
 
 <style scoped>

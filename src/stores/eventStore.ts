@@ -2,8 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { isEventRegistrationOpen } from '@/lib/eventRegistration'
+import { categoryLabel, categorySlug } from '@/lib/category'
 import { useAuthStore } from '@/stores/authStore'
-import type { EventItem, CategoryType } from '@/types/event'
+import type { CategoryType, EventItem, EventStatus } from '@/types/event'
 
 export interface AttendeeItem {
   id: string
@@ -23,6 +24,32 @@ interface RawAttendeeRow {
   registration_status: 'registered' | 'waitlisted' | 'cancelled'
   attendance_status: 'pending' | 'attended' | 'absent'
   registered_at: string
+}
+
+interface RawEventRow {
+  id: string
+  title: string
+  description: string | null
+  category: string
+  event_date: string
+  start_time: string
+  end_time: string
+  location: string | null
+  online_link: string | null
+  organiser_id: string
+  organiser_name?: string | null
+  organiser?: { full_name?: string | null } | null
+  capacity: number
+  registered_count: number | null
+  waitlist_count: number | null
+  image_url: string | null
+  poster_url?: string | null
+  status: string
+}
+
+function messageFrom(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object' && 'message' in error) return String(error.message)
+  return fallback
 }
 
 function generateValidUUID(): string {
@@ -66,9 +93,9 @@ const attendeesError = ref('')
 
       // Category filter (Case-insensitive matching)
       if (selectedCategory.value !== 'All') {
-        const targetCat = selectedCategory.value.toLowerCase()
-        const eventCat = (event.category || '').toLowerCase()
-        if (!eventCat.includes(targetCat) && !targetCat.includes(eventCat)) {
+        const targetCat = categorySlug(selectedCategory.value)
+        const eventCat = categorySlug(event.category || '')
+        if (eventCat !== targetCat) {
           return false
         }
       }
@@ -312,7 +339,7 @@ const attendeesError = ref('')
       eTime = '23:59:59'
     }
 
-    const cleanCategory = (eventPayload.category || 'tech').toLowerCase()
+    const cleanCategory = categorySlug(eventPayload.category || 'tech')
     const validDate = eventPayload.date && eventPayload.date.length >= 8 ? eventPayload.date : '2026-11-01'
     const generatedId = generateValidUUID()
 
@@ -349,9 +376,9 @@ const attendeesError = ref('')
         const createdEvent = events.value.find((e) => e.id === dbData.id) || events.value[0]
         return { success: true, event: createdEvent }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Supabase createEvent insert exception:', err)
-      return { success: false, message: err.message || 'Database insert failed' }
+      return { success: false, message: messageFrom(err, 'Database insert failed') }
     }
 
     return { success: false, message: 'Event insert to Supabase failed.' }
@@ -397,7 +424,7 @@ const attendeesError = ref('')
       eTime = '23:59:59'
     }
 
-    const cleanCategory = (eventPayload.category || 'tech').toLowerCase()
+    const cleanCategory = categorySlug(eventPayload.category || 'tech')
     const fullStart = `${eventPayload.date} • ${eventPayload.startTime}`
     const fullEnd = `${eventPayload.date} • ${eventPayload.endTime}`
 
@@ -406,7 +433,7 @@ const attendeesError = ref('')
     if (target) {
       target.title = eventPayload.title
       target.description = eventPayload.description
-      target.category = (eventPayload.category as CategoryType) || 'Tech'
+      target.category = categoryLabel(eventPayload.category || 'Tech')
       target.posterUrl = eventPayload.posterUrl
       target.startTime = fullStart
       target.endTime = fullEnd
@@ -442,9 +469,9 @@ const attendeesError = ref('')
         } else {
           await fetchEventsFromSupabase()
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('Supabase updateEvent exception:', err)
-        return { success: false, message: err.message }
+        return { success: false, message: messageFrom(err, 'Database update failed') }
       }
     }
 
@@ -473,9 +500,9 @@ const attendeesError = ref('')
           console.warn('Supabase submitEventForReview error:', error)
           return { success: false, message: error.message }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn('Supabase submitEventForReview exception:', err)
-        return { success: false, message: err.message }
+        return { success: false, message: messageFrom(err, 'Unable to submit the event') }
       }
     }
 
@@ -531,16 +558,8 @@ const attendeesError = ref('')
       }
 
       if (!error && data && data.length > 0) {
-        events.value = data.map((item: any) => {
-          let categoryName: CategoryType = 'Tech'
-          const rawCat = (item.category || '').toLowerCase()
-          if (rawCat.includes('tech') || rawCat.includes('coding')) categoryName = 'Tech'
-          else if (rawCat.includes('academic') || rawCat.includes('research')) categoryName = 'Academic'
-          else if (rawCat.includes('sport') || rawCat.includes('fitness')) categoryName = 'Sports'
-          else if (rawCat.includes('cultural') || rawCat.includes('art')) categoryName = 'Cultural'
-          else if (rawCat.includes('club')) categoryName = 'Club'
-          else if (rawCat.includes('career')) categoryName = 'Career'
-          else categoryName = 'Tech'
+        events.value = (data as RawEventRow[]).map((item) => {
+          const categoryName: CategoryType = categoryLabel(item.category || 'tech')
 
           const fullStart = `${item.event_date || 'Oct 28'} • ${item.start_time || '14:00'}`
           const fullEnd = `${item.event_date || 'Oct 28'} • ${item.end_time || '18:00'}`
@@ -548,8 +567,8 @@ const attendeesError = ref('')
           const regCount = item.registered_count || 0
           const cap = item.capacity || 100
 
-          let statusStr: any = item.status ? item.status.toLowerCase() : 'open'
-          if (statusStr === 'published') {
+          let statusStr = (item.status ? item.status.toUpperCase() : 'OPEN') as EventStatus
+          if (item.status?.toLowerCase() === 'published') {
             if (regCount >= cap) statusStr = 'WAITLIST'
             else if (regCount >= cap * 0.8) statusStr = 'FILLING_FAST'
             else statusStr = 'OPEN'
@@ -644,9 +663,9 @@ const attendeesError = ref('')
           await fetchEventsFromSupabase()
           return { success: true }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Supabase delete exception:', err)
-        return { success: false, message: err.message || 'Delete operation failed' }
+        return { success: false, message: messageFrom(err, 'Delete operation failed') }
       }
     }
 

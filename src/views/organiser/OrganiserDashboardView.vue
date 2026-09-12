@@ -501,7 +501,6 @@ import {
   Clock,
   TrendCharts,
   Plus,
-  Search,
   Location,
   Bell,
   MoreFilled,
