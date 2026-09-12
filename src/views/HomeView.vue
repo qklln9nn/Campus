@@ -483,9 +483,13 @@ function handleCancelRegistration(eventId: string) {
     `Cancel registration for "${event.title}"?`,
     'Confirm Action',
     { confirmButtonText: 'Yes, Proceed', cancelButtonText: 'Keep Spot', type: 'warning' }
-  ).then(() => {
-    eventStore.cancelRegistration(eventId)
-    ElMessage({ type: 'info', message: 'Registration updated.' })
+  ).then(async () => {
+    try {
+      await eventStore.cancelRegistration(eventId)
+      ElMessage({ type: 'info', message: 'Registration updated.' })
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? error.message : 'Unable to cancel registration.')
+    }
   }).catch(() => {})
 }
 </script>

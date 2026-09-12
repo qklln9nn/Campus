@@ -117,7 +117,7 @@
               :event="event"
               @register-event="openRegistrationDialog"
               @cancel-registration="handleCancelRegistration"
-              @toggle-bookmark="eventStore.toggleBookmark"
+              @toggle-bookmark="handleToggleBookmark"
             />
           </el-col>
         </el-row>
@@ -285,6 +285,14 @@ function openRegistrationDialog(event: EventItem) {
   showRegistrationModal.value = true
 }
 
+async function handleToggleBookmark(eventId: string) {
+  try {
+    await eventStore.toggleBookmark(eventId)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to update saved event.')
+  }
+}
+
 async function confirmRegistration() {
   if (!selectedEvent.value) return
 
@@ -334,12 +342,18 @@ function handleCancelRegistration(eventId: string) {
       type: 'warning',
     }
   )
-    .then(() => {
-      eventStore.cancelRegistration(eventId)
-      ElMessage({
-        type: 'info',
-        message: `Registration update saved.`,
-      })
+    .then(async () => {
+      try {
+        await eventStore.cancelRegistration(eventId)
+        ElMessage({
+          type: 'info',
+          message: `Registration update saved.`,
+        })
+      } catch (error) {
+        ElMessage.error(
+          error instanceof Error ? error.message : 'Unable to cancel registration.',
+        )
+      }
     })
     .catch(() => {})
 }

@@ -566,7 +566,9 @@ const broadcastForm = reactive({
 
 // Organiser's Own Events Filter
 const ownEvents = computed(() => {
-  return eventStore.events
+  const organiserId = authStore.currentUser?.id
+  if (!organiserId) return []
+  return eventStore.events.filter((event) => event.organiserId === organiserId)
 })
 
 // KPI Metrics Computations
