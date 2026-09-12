@@ -1,136 +1,148 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/authStore'
-import { ElMessage } from 'element-plus'
+import {
+  createRouter,
+  createWebHistory,
+  type RouteLocationNormalized,
+  type RouteRecordRaw,
+  type RouterHistory,
+} from 'vue-router'
 
-/**
- * Vue Router configuration for Campus EventHub
- * Defines routes for student dashboard, organiser portal, and admin console.
- */
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  scrollBehavior(_to, _from, savedPosition) {
-    if (savedPosition) {
-      return savedPosition
-    }
-    return { top: 0, left: 0 }
+import { pinia } from '@/stores'
+import { getRoleHomePath, useAuthStore, type UserRole } from '@/stores/authStore'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    guestOnly?: boolean
+    recoveryOnly?: boolean
+    roles?: UserRole[]
+  }
+}
+
+export const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    name: 'home',
+    component: () => import('../views/HomeView.vue'),
   },
-  routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: () => import('../views/HomeView.vue'),
-    },
-    {
-      path: '/login',
-      name: 'login',
-      component: () => import('../views/auth/LoginView.vue'),
-    },
-    {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: () => import('../views/student/DashboardView.vue'),
-    },
-    {
-      path: '/profile',
-      name: 'profile',
-      component: () => import('../views/student/ProfileView.vue'),
-    },
-    {
-      path: '/organiser/dashboard',
-      name: 'organiser-dashboard',
-      component: () => import('../views/organiser/OrganiserDashboardView.vue'),
-    },
-    {
-      path: '/create',
-      name: 'create-event',
-      component: () => import('../views/organiser/CreateEventView.vue'),
-    },
-    {
-      path: '/admin',
-      component: () => import('../views/admin/AdminView.vue'),
-      redirect: '/admin/dashboard',
-      children: [
-        {
-          path: 'dashboard',
-          name: 'admin-dashboard',
-          component: () => import('../views/admin/AdminDashboardView.vue'),
-        },
-        {
-          path: 'events',
-          name: 'admin-events',
-          component: () => import('../views/admin/AdminEventsView.vue'),
-        },
-        {
-          path: 'users',
-          name: 'admin-users',
-          component: () => import('../views/admin/AdminUsersView.vue'),
-        },
-        {
-          path: 'reports',
-          name: 'admin-reports',
-          component: () => import('../views/admin/AdminReportsView.vue'),
-        },
-        {
-          path: 'settings',
-          name: 'admin-settings',
-          component: () => import('../views/admin/AdminSettingsView.vue'),
-        },
-      ],
-    },
-  ],
-})
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('../views/auth/LoginView.vue'),
+    meta: { guestOnly: true },
+  },
+  {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: () => import('../views/auth/ResetPasswordView.vue'),
+    meta: { recoveryOnly: true },
+  },
+  {
+    path: '/dashboard',
+    name: 'dashboard',
+    component: () => import('../views/student/DashboardView.vue'),
+    meta: { requiresAuth: true, roles: ['STUDENT'] },
+  },
+  {
+    path: '/profile',
+    name: 'profile',
+    component: () => import('../views/student/ProfileView.vue'),
+    meta: { requiresAuth: true, roles: ['STUDENT', 'ORGANISER'] },
+  },
+  {
+    path: '/organiser/dashboard',
+    name: 'organiser-dashboard',
+    component: () => import('../views/organiser/OrganiserDashboardView.vue'),
+    meta: { requiresAuth: true, roles: ['ORGANISER'] },
+  },
+  {
+    path: '/create',
+    name: 'create-event',
+    component: () => import('../views/organiser/CreateEventView.vue'),
+    meta: { requiresAuth: true, roles: ['ORGANISER'] },
+  },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: () => import('../views/admin/AdminView.vue'),
+    redirect: { name: 'admin-dashboard' },
+    meta: { requiresAuth: true, roles: ['ADMIN'] },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'admin-dashboard',
+        component: () => import('../views/admin/AdminDashboardView.vue'),
+      },
+      {
+        path: 'events',
+        name: 'admin-events',
+        component: () => import('../views/admin/AdminEventsView.vue'),
+      },
+      {
+        path: 'users',
+        name: 'admin-users',
+        component: () => import('../views/admin/AdminUsersView.vue'),
+      },
+      {
+        path: 'reports',
+        name: 'admin-reports',
+        component: () => import('../views/admin/AdminReportsView.vue'),
+      },
+      {
+        path: 'settings',
+        name: 'admin-settings',
+        component: () => import('../views/admin/AdminSettingsView.vue'),
+      },
+    ],
+  },
+]
 
-/**
- * Global Navigation Guard: Strict Role-Based Access Control (RBAC)
- */
-router.beforeEach((to) => {
-  const authStore = useAuthStore()
+type AuthStore = ReturnType<typeof useAuthStore>
 
-  // 1. Unauthenticated Protection
-  const publicRoutes = ['home', 'login']
+export function createAuthGuard(authStore: AuthStore) {
+  return async (to: RouteLocationNormalized) => {
+    if (!authStore.authReady) await authStore.initializeAuth()
 
-  if (
-    !authStore.isAuthenticated &&
-    !publicRoutes.includes(to.name as string)
-  ) {
-    ElMessage.info('Please sign in first to access your portal.')
-    return { name: 'login' }
-  }
-
-  // 2. Role-Based Access Enforcement
-  if (authStore.isAuthenticated) {
-    const role = authStore.userRole
-
-    // Redirect organisers to their own dashboard
-    if (to.path === '/dashboard' && role === 'ORGANISER') {
-      return { path: '/organiser/dashboard' }
+    if (to.meta.recoveryOnly && (!authStore.isPasswordRecovery || !authStore.isAuthenticated)) {
+      if (authStore.isAuthenticated) return getRoleHomePath(authStore.userRole)
+      return { name: 'login', query: { recovery: 'invalid' } }
     }
 
-    // Prevent students from entering organiser routes
+    if (to.meta.guestOnly && authStore.isAuthenticated) {
+      return getRoleHomePath(authStore.userRole)
+    }
+
+    if (!to.meta.requiresAuth) return true
+
+    if (!authStore.isAuthenticated) {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+
+    const allowedRoles = to.meta.roles
     if (
-      (to.path.startsWith('/organiser') || to.path === '/create') &&
-      role === 'STUDENT'
+      allowedRoles?.length &&
+      (!authStore.userRole || !allowedRoles.includes(authStore.userRole))
     ) {
-      ElMessage.error(
-        'Access Denied: Student accounts cannot access the Organiser Console.',
-      )
-      return { path: '/dashboard' }
+      return getRoleHomePath(authStore.userRole)
     }
 
-    // Prevent non-admin users from entering admin routes
-    if (to.path.startsWith('/admin') && role !== 'ADMIN') {
-      ElMessage.error('Access Denied: Administrator role required.')
-
-      return {
-        path:
-          role === 'ORGANISER'
-            ? '/organiser/dashboard'
-            : '/dashboard',
-      }
-    }
+    return true
   }
+}
 
-  return true
-})
+export function createAppRouter(
+  history: RouterHistory = createWebHistory(import.meta.env.BASE_URL),
+) {
+  const appRouter = createRouter({
+    history,
+    routes,
+    scrollBehavior(_to, _from, savedPosition) {
+      return savedPosition ?? { top: 0, left: 0 }
+    },
+  })
+  appRouter.beforeEach(createAuthGuard(useAuthStore(pinia)))
+  return appRouter
+}
+
+const router = createAppRouter()
 
 export default router

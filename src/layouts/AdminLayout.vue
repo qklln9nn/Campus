@@ -139,6 +139,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/authStore'
 import {
   Management,
@@ -166,9 +167,14 @@ const authStore = useAuthStore()
 
 const isSidebarCollapsed = ref(false)
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
+async function handleLogout() {
+  try {
+    await authStore.logout()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to sign out.')
+  } finally {
+    await router.replace('/login')
+  }
 }
 
 const activeMenuIndex = computed(() => {
