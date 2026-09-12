@@ -59,7 +59,7 @@
           class="overlay-btn bookmark-btn" 
           :class="{ active: event.isBookmarked }" 
           @click.stop="$emit('toggle-bookmark', event.id)"
-          title="Save Event"
+          title="Save for later (this does not register you)"
         >
           <el-icon><StarFilled v-if="event.isBookmarked" /><Star v-else /></el-icon>
         </button>
@@ -145,6 +145,16 @@
           <el-icon><Clock /></el-icon> Waitlisted
         </el-button>
 
+        <el-button
+          v-else-if="!registrationOpen"
+          type="info"
+          size="default"
+          class="action-btn"
+          disabled
+        >
+          Registration Closed
+        </el-button>
+
         <el-button 
           v-else-if="event.registeredCount >= event.capacity" 
           type="warning" 
@@ -216,6 +226,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { EventItem, CategoryType } from '@/types/event'
+import { isEventRegistrationOpen } from '@/lib/eventRegistration'
 import { Calendar, Location, User, Star, StarFilled, Check, Clock, Warning, Right, Loading } from '@element-plus/icons-vue'
 import { handlePosterError, DEFAULT_FALLBACK_POSTER } from '@/lib/posterFallback'
 import { useModerationStore } from '@/stores/moderationStore'
@@ -233,6 +244,8 @@ const props = withDefaults(
     hideOverlayActions: false,
   }
 )
+
+const registrationOpen = computed(() => isEventRegistrationOpen(props.event))
 
 const reportModalVisible = ref(false)
 const reportReason = ref('')

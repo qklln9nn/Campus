@@ -19,7 +19,9 @@ export interface EventItem {
   posterUrl: string;
   startTime: string; // e.g. 'Oct 24, 2026 • 14:00 PM'
   endTime: string;
+  startsAt?: string; // ISO-like local timestamp used for registration availability
   location: string;
+  organiserId?: string;
   organiser: {
     name: string;
     avatar?: string;

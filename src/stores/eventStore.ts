@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { isEventRegistrationOpen } from '@/lib/eventRegistration'
 import { useAuthStore } from '@/stores/authStore'
 import type { EventItem, CategoryType } from '@/types/event'
 
@@ -106,34 +107,47 @@ const attendeesError = ref('')
     const authStore = useAuthStore()
     const userId = authStore.currentUser?.id
 
+    if (!userId) throw new Error('Please sign in to save events.')
+
     // Toggle local state instantly for seamless UI response
     const willBookmark = !event.isBookmarked
     event.isBookmarked = willBookmark
 
-    if (!supabase || !import.meta.env.VITE_SUPABASE_URL || !userId) return
-
     try {
       if (willBookmark) {
-        await supabase.from('saved_events').insert({
+        const { error } = await supabase.from('saved_events').insert({
           student_id: userId,
           event_id: eventId,
         })
+        if (error) throw error
       } else {
-        await supabase
+        const { error } = await supabase
           .from('saved_events')
           .delete()
           .eq('student_id', userId)
           .eq('event_id', eventId)
+        if (error) throw error
       }
-    } catch (e) {
-      console.warn('Supabase toggleBookmark sync error:', e)
+    } catch (error) {
+      event.isBookmarked = !willBookmark
+      console.warn('Supabase toggleBookmark sync error:', error)
+      throw new Error(
+        error && typeof error === 'object' && 'message' in error
+          ? String(error.message)
+          : 'Unable to update the saved event.',
+      )
     }
   }
 
   // Actions: Persistent Registration & Waitlist in Supabase
   async function registerEvent(eventId: string) {
     const event = events.value.find((e) => e.id === eventId)
-    if (!event || event.isRegistered || event.isWaitlisted) return
+    if (!event) throw new Error('Event not found.')
+    if (event.isRegistered) return 'registered'
+    if (event.isWaitlisted) return 'waitlisted'
+    if (!isEventRegistrationOpen(event)) {
+      throw new Error('Registration is closed because this event has already started or ended.')
+    }
 
     const authStore = useAuthStore()
     const userId = authStore.currentUser?.id
@@ -190,7 +204,14 @@ const attendeesError = ref('')
       event.status = 'WAITLIST'
     }
 
-    return data?.status as string
+    if (data?.status !== 'registered' && data?.status !== 'waitlisted') {
+      Object.assign(event, snapshot)
+      throw new Error('Supabase did not return a valid registration status.')
+    }
+
+    const finalStatus = data.status
+    await fetchEventsFromSupabase()
+    return finalStatus
   }
 
   // Actions: Persistent Cancel Registration in Supabase
@@ -233,6 +254,8 @@ const attendeesError = ref('')
       Object.assign(event, snapshot)
       throw new Error(error.message)
     }
+
+    await fetchEventsFromSupabase()
   }
 
   /**
@@ -543,7 +566,12 @@ const attendeesError = ref('')
               'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
             startTime: fullStart,
             endTime: fullEnd,
+            startsAt:
+              item.event_date && item.start_time
+                ? `${item.event_date}T${String(item.start_time).slice(0, 8)}`
+                : undefined,
             location: item.location || item.online_link || 'Campus Center Auditorium',
+            organiserId: item.organiser_id,
             organiser: {
               name:
                 item.organiser?.full_name ||
