@@ -67,12 +67,12 @@
             size="default"
           >
             <el-option label="All Categories" value="All" />
-            <el-option label="Academic" value="Academic" />
-            <el-option label="Tech & Coding" value="Tech" />
-            <el-option label="Sports & Fitness" value="Sports" />
-            <el-option label="Cultural & Arts" value="Cultural" />
-            <el-option label="Club Activities" value="Club" />
-            <el-option label="Career Expo" value="Career" />
+            <el-option
+              v-for="category in categoryStore.activeCategories"
+              :key="category.slug"
+              :label="category.name"
+              :value="category.slug"
+            />
           </el-select>
 
           <!-- Sorting Select Dropdown -->
@@ -117,7 +117,7 @@
               :event="event"
               @register-event="openRegistrationDialog"
               @cancel-registration="handleCancelRegistration"
-              @toggle-bookmark="eventStore.toggleBookmark"
+              @toggle-bookmark="handleToggleBookmark"
             />
           </el-col>
         </el-row>
@@ -220,17 +220,22 @@ import { ref, computed, onMounted } from 'vue'
 import StudentLayout from '@/layouts/StudentLayout.vue'
 import EventCard from '@/components/EventCard.vue'
 import { useEventStore } from '@/stores/eventStore'
+import { useCategoryStore } from '@/stores/categoryStore'
 import type { EventItem } from '@/types/event'
 import { Refresh, Calendar, Location, User } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const eventStore = useEventStore()
+const categoryStore = useCategoryStore()
 
 onMounted(() => {
   eventStore.searchQuery = ''
   eventStore.selectedCategory = 'All'
   eventStore.activeTab = 'all'
-  eventStore.fetchEventsFromSupabase()
+  void Promise.allSettled([
+    eventStore.fetchEventsFromSupabase(),
+    categoryStore.fetchCategories(),
+  ])
 })
 
 // Local Controls State
@@ -285,6 +290,14 @@ function openRegistrationDialog(event: EventItem) {
   showRegistrationModal.value = true
 }
 
+async function handleToggleBookmark(eventId: string) {
+  try {
+    await eventStore.toggleBookmark(eventId)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to update saved event.')
+  }
+}
+
 async function confirmRegistration() {
   if (!selectedEvent.value) return
 
@@ -334,12 +347,18 @@ function handleCancelRegistration(eventId: string) {
       type: 'warning',
     }
   )
-    .then(() => {
-      eventStore.cancelRegistration(eventId)
-      ElMessage({
-        type: 'info',
-        message: `Registration update saved.`,
-      })
+    .then(async () => {
+      try {
+        await eventStore.cancelRegistration(eventId)
+        ElMessage({
+          type: 'info',
+          message: `Registration update saved.`,
+        })
+      } catch (error) {
+        ElMessage.error(
+          error instanceof Error ? error.message : 'Unable to cancel registration.',
+        )
+      }
     })
     .catch(() => {})
 }

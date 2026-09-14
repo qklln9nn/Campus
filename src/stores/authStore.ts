@@ -20,6 +20,7 @@ export interface UserProfile {
   name: string
   email: string
   role: UserRole
+  accountStatus: 'active' | 'suspended'
   avatar?: string
   studentId?: string
   major: string
@@ -45,7 +46,7 @@ export interface RegistrationResult {
 }
 
 const PROFILE_COLUMNS =
-  'id,email,full_name,role,avatar_url,student_id,major,grade,bio,interests,clubs,available_time,notification_preferences,created_at,updated_at'
+  'id,email,full_name,role,account_status,avatar_url,student_id,major,grade,bio,interests,clubs,available_time,notification_preferences,created_at,updated_at'
 
 const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   emailAlerts: true,
@@ -107,6 +108,7 @@ function normalizeProfile(user: User, profile: ProfileRow): UserProfile {
       'Campus user',
     email,
     role: mapDatabaseRole(profile.role),
+    accountStatus: profile.account_status,
     avatar: profile.avatar_url ?? undefined,
     studentId: profile.student_id ?? undefined,
     major: profile.major ?? '',
@@ -168,7 +170,12 @@ export const useAuthStore = defineStore('auth', () => {
     if (error) throw new Error(`Unable to load your campus profile: ${error.message}`)
     if (!data) throw new Error('No campus profile exists for this account.')
 
-    return normalizeProfile(user, data as ProfileRow)
+    const profile = data as ProfileRow
+    if (profile.account_status === 'suspended') {
+      throw new Error('This campus account has been suspended. Please contact an administrator.')
+    }
+
+    return normalizeProfile(user, profile)
   }
 
   async function syncSession(nextSession: Session | null): Promise<void> {

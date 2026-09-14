@@ -23,7 +23,12 @@
       <div class="filters">
         <el-input v-model="searchQuery" clearable placeholder="Search title or organiser..." />
         <el-select v-model="selectedCategory" clearable placeholder="All categories">
-          <el-option v-for="category in categories" :key="category" :label="category" :value="category" />
+          <el-option
+            v-for="category in activeCategories"
+            :key="category.slug"
+            :label="category.name"
+            :value="category.slug"
+          />
         </el-select>
       </div>
     </div>
@@ -45,7 +50,9 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="category" label="Category" width="130" />
+      <el-table-column label="Category" width="150">
+        <template #default="{ row }">{{ categoryStore.labelFor(row.category) }}</template>
+      </el-table-column>
       <el-table-column label="Organiser" min-width="190">
         <template #default="{ row }">
           <div class="organiser-cell">
@@ -122,16 +129,19 @@ import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { useModerationStore, type EventModerationStatus, type ModerationEvent } from '@/stores/moderationStore'
+import { useCategoryStore } from '@/stores/categoryStore'
+import { categorySlug } from '@/lib/category'
 
 const moderationStore = useModerationStore()
+const categoryStore = useCategoryStore()
 const { events, loadingEvents, errorMessage } = storeToRefs(moderationStore)
+const { activeCategories } = storeToRefs(categoryStore)
 const searchQuery = ref('')
 const selectedCategory = ref('')
 const activeStatusTab = ref<EventModerationStatus | 'all'>('all')
 const drawerVisible = ref(false)
 const selectedEvent = ref<ModerationEvent | null>(null)
 const fallbackPoster = 'https://placehold.co/640x360?text=Campus+Event'
-const categories = ['academic', 'sports', 'cultural', 'tech', 'club', 'career', 'competition']
 
 const allCount = computed(() => events.value.length)
 const pendingCount = computed(() => events.value.filter((event) => event.status === 'pending').length)
@@ -144,7 +154,7 @@ const filteredEvents = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
   return events.value.filter((event) => {
     if (activeStatusTab.value !== 'all' && event.status !== activeStatusTab.value) return false
-    if (selectedCategory.value && event.category !== selectedCategory.value) return false
+    if (selectedCategory.value && categorySlug(event.category) !== selectedCategory.value) return false
     if (query && !event.title.toLowerCase().includes(query) && !event.organiser.toLowerCase().includes(query)) return false
     return true
   })
@@ -214,7 +224,9 @@ async function handleRestore(event: ModerationEvent) {
   }
 }
 
-onMounted(loadEvents)
+onMounted(() => {
+  void Promise.allSettled([loadEvents(), categoryStore.fetchCategories()])
+})
 </script>
 
 <style scoped>
