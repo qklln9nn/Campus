@@ -10,6 +10,16 @@ import { pinia } from './stores'
 import { getRoleHomePath, useAuthStore } from './stores/authStore'
 import { useEventStore } from './stores/eventStore'
 
+//******************Font**************** */
+// Supports weights 100-900
+import '@fontsource-variable/noto-sans-sc/wght.css';
+import '@fontsource/opendyslexic';
+// Supports weights 100-900 //  font-family: 'Lexend Variable', sans-serif;
+import '@fontsource-variable/lexend/wght.css';
+
+
+
+
 const app = createApp(App)
 
 app.use(pinia)
