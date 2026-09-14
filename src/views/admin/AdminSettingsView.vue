@@ -6,10 +6,12 @@
         <h1 class="page-title">System Configurations & Categories</h1>
         <p class="page-subtitle">Configure global event categories, approval workflows, and system rules.</p>
       </div>
-      <el-button type="primary" size="large" @click="saveSettings">
+      <el-button type="primary" size="large" :loading="saving || loadingSettings" @click="saveSettings">
         <el-icon><Check /></el-icon> Save Configurations
       </el-button>
     </div>
+
+    <el-alert v-if="pageError" :title="pageError" type="error" show-icon :closable="false" />
 
     <!-- Category Maintenance Section -->
     <div class="settings-panel">
@@ -18,17 +20,17 @@
       </div>
       <p class="panel-desc">Manage categories visible to students during event exploration and publishing.</p>
 
-      <div class="category-tags-list">
+      <div v-loading="categoryLoading" class="category-tags-list">
         <el-tag
-          v-for="cat in categories"
-          :key="cat"
+          v-for="cat in activeCategories"
+          :key="cat.slug"
           closable
           size="large"
           effect="dark"
           class="cat-tag"
-          @close="removeCategory(cat)"
+          @close="removeCategory(cat.slug, cat.name)"
         >
-          {{ cat }}
+          {{ cat.name }}
         </el-tag>
 
         <el-input
@@ -44,6 +46,17 @@
           + New Category
         </el-button>
       </div>
+
+      <div v-if="inactiveCategories.length" class="inactive-categories">
+        <span>Inactive:</span>
+        <el-button
+          v-for="cat in inactiveCategories"
+          :key="cat.slug"
+          link
+          type="primary"
+          @click="restoreCategory(cat.slug, cat.name)"
+        >Restore {{ cat.name }}</el-button>
+      </div>
     </div>
 
     <!-- Workflow Rules Section -->
@@ -58,17 +71,17 @@
             <span>Require Manual Admin Approval for Events</span>
             <p>Enforced by database policy. Organiser submissions remain private until an administrator approves them.</p>
           </div>
-          <el-switch :model-value="true" active-color="#ef4444" disabled />
+          <el-switch v-model="formSettings.requireApproval" active-color="#ef4444" disabled />
         </div>
 
         <el-divider />
 
         <div class="form-item">
           <div class="item-label">
-            <span>Auto-Disable Reported Events Threshold</span>
-            <p>Automatically suspend an event if it receives multiple violation reports.</p>
+            <span>High-Risk Report Escalation Threshold</span>
+            <p>Store the number of reports used by moderators to identify high-priority cases.</p>
           </div>
-          <el-input-number v-model="settings.reportThreshold" :min="1" :max="10" />
+          <el-input-number v-model="formSettings.reportThreshold" :min="1" :max="10" />
         </div>
 
         <el-divider />
@@ -76,9 +89,9 @@
         <div class="form-item">
           <div class="item-label">
             <span>Admin Alert Notification Email</span>
-            <p>Receive immediate alerts when new event proposals or high-risk reports are filed.</p>
+            <p>Store the moderation contact address used by administrator alert integrations.</p>
           </div>
-          <el-input v-model="settings.adminEmail" style="width: 300px" />
+          <el-input v-model="formSettings.adminEmail" type="email" style="width: 300px" />
         </div>
       </div>
     </div>
@@ -86,23 +99,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { nextTick, onMounted, reactive, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus'
 import { Check, Folder, Operation } from '@element-plus/icons-vue'
+import { useAdminStore } from '@/stores/adminStore'
+import { useCategoryStore } from '@/stores/categoryStore'
 
-const categories = ref(['Academic & Tech', 'Competition', 'Sports & Health', 'Culture & Arts', 'Career & Networking', 'Social'])
+const adminStore = useAdminStore()
+const categoryStore = useCategoryStore()
+const { settings, loadingSettings, errorMessage } = storeToRefs(adminStore)
+const { activeCategories, inactiveCategories, loading: categoryLoading, error: categoryError } = storeToRefs(categoryStore)
 const inputVisible = ref(false)
 const inputValue = ref('')
 const InputRef = ref<HTMLInputElement>()
+const saving = ref(false)
+const pageError = ref('')
 
-const settings = ref({
+const formSettings = reactive({
   requireApproval: true,
   reportThreshold: 3,
-  adminEmail: 'admin-safety@campus.edu',
+  adminEmail: '',
 })
 
-function removeCategory(cat: string) {
-  categories.value = categories.value.filter((c) => c !== cat)
+async function removeCategory(slug: string, name: string) {
+  try {
+    await categoryStore.setCategory(name, false, slug)
+    ElMessage.success(`Category "${name}" disabled.`)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to disable the category.')
+  }
+}
+
+async function restoreCategory(slug: string, name: string) {
+  try {
+    await categoryStore.setCategory(name, true, slug)
+    ElMessage.success(`Category "${name}" restored.`)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to restore the category.')
+  }
 }
 
 function showInput() {
@@ -112,17 +147,44 @@ function showInput() {
   })
 }
 
-function handleInputConfirm() {
-  if (inputValue.value) {
-    categories.value.push(inputValue.value)
-  }
+async function handleInputConfirm() {
+  const name = inputValue.value.trim()
   inputVisible.value = false
   inputValue.value = ''
+  if (!name) return
+  try {
+    await categoryStore.setCategory(name, true)
+    ElMessage.success(`Category "${name}" saved.`)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to save the category.')
+  }
 }
 
-function saveSettings() {
-  ElMessage.success('System configuration and category dictionary saved successfully!')
+async function saveSettings() {
+  saving.value = true
+  try {
+    await adminStore.saveSettings(formSettings.reportThreshold, formSettings.adminEmail)
+    ElMessage.success('System configuration saved successfully!')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to save system settings.')
+  } finally {
+    saving.value = false
+  }
 }
+
+async function loadSettingsPage() {
+  pageError.value = ''
+  const results = await Promise.allSettled([
+    adminStore.fetchSettings(),
+    categoryStore.fetchCategories(true),
+  ])
+  if (settings.value) Object.assign(formSettings, settings.value)
+  if (results.some((result) => result.status === 'rejected')) {
+    pageError.value = errorMessage.value || categoryError.value || 'Unable to load all system settings.'
+  }
+}
+
+onMounted(loadSettingsPage)
 </script>
 
 <style scoped>
@@ -184,6 +246,16 @@ function saveSettings() {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+}
+
+.inactive-categories {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  color: #64748b;
+  font-size: 0.8rem;
 }
 
 .cat-tag {

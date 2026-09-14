@@ -2,7 +2,7 @@
   <div class="admin-reports-view">
     <div class="page-header">
       <div><h1>Violation Reports & Moderation</h1><p>Review student reports and apply an auditable resolution.</p></div>
-      <el-button :loading="loadingReports" @click="loadReports">Refresh</el-button>
+      <el-button :loading="loadingReports || loadingSettings" @click="loadReports">Refresh</el-button>
     </div>
 
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" />
@@ -19,7 +19,10 @@
       <article v-for="report in filteredReports" :key="report.id" class="report-card">
         <header>
           <span class="ticket-id">Ticket #{{ report.id.slice(0, 8) }}</span>
-          <el-tag :type="getReasonTagType(report.reasonType)" effect="dark">{{ report.reasonType }}</el-tag>
+          <div class="report-tags">
+            <el-tag v-if="isEscalated(report)" type="danger" effect="dark">HIGH PRIORITY</el-tag>
+            <el-tag :type="getReasonTagType(report.reasonType)" effect="dark">{{ report.reasonType }}</el-tag>
+          </div>
         </header>
         <div class="report-body">
           <h3>{{ report.targetTitle }}</h3>
@@ -45,11 +48,26 @@ import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { useModerationStore, type ModerationReport, type ReportStatus } from '@/stores/moderationStore'
+import { useAdminStore } from '@/stores/adminStore'
 
 const moderationStore = useModerationStore()
+const adminStore = useAdminStore()
 const { reports, loadingReports, errorMessage, pendingReportCount } = storeToRefs(moderationStore)
+const { settings, loadingSettings } = storeToRefs(adminStore)
 const statusFilter = ref<ReportStatus>('pending')
 const filteredReports = computed(() => reports.value.filter((report) => report.status === statusFilter.value))
+const openReportCounts = computed(() => {
+  const counts = new Map<string, number>()
+  reports.value
+    .filter((report) => report.status === 'pending' || report.status === 'reviewing')
+    .forEach((report) => counts.set(report.eventId, (counts.get(report.eventId) ?? 0) + 1))
+  return counts
+})
+
+function isEscalated(report: ModerationReport): boolean {
+  if (!settings.value) return false
+  return (openReportCounts.value.get(report.eventId) ?? 0) >= settings.value.reportThreshold
+}
 
 function getReasonTagType(reason: string) {
   if (reason.toLowerCase().includes('safety')) return 'danger'
@@ -65,7 +83,7 @@ function getStatusType(status: ReportStatus) {
 }
 
 async function loadReports() {
-  try { await moderationStore.fetchReports() }
+  try { await Promise.all([moderationStore.fetchReports(), adminStore.fetchSettings()]) }
   catch { ElMessage.error(errorMessage.value || 'Unable to load reports.') }
 }
 
@@ -116,6 +134,7 @@ onMounted(loadReports)
 .report-card { display: flex; flex-direction: column; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 8px rgb(15 23 42 / 6%); }
 .report-card header, .report-card footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: #f8fafc; }
 .ticket-id { color: #64748b; font-size: 0.8rem; font-weight: 700; }
+.report-tags { display: flex; align-items: center; gap: 6px; }
 .report-body { flex: 1; padding: 18px; }
 .report-body h3 { margin: 0 0 6px; color: #1e293b; }
 .reporter { color: #64748b; font-size: 0.8rem; }

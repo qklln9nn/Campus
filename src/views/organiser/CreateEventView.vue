@@ -51,12 +51,12 @@
                   <el-col :span="12">
                     <el-form-item label="Category" prop="category">
                       <el-select v-model="formData.category" placeholder="Select category" style="width: 100%">
-                        <el-option label="Tech & Coding" value="Tech" />
-                        <el-option label="Academic & Research" value="Academic" />
-                        <el-option label="Sports & Fitness" value="Sports" />
-                        <el-option label="Cultural & Arts" value="Cultural" />
-                        <el-option label="Club Activities" value="Club" />
-                        <el-option label="Career Expo" value="Career" />
+                        <el-option
+                          v-for="category in categoryStore.activeCategories"
+                          :key="category.slug"
+                          :label="category.name"
+                          :value="category.slug"
+                        />
                       </el-select>
                     </el-form-item>
                   </el-col>
@@ -244,6 +244,8 @@ import { useRoute, useRouter } from 'vue-router'
 import OrganiserLayout from '@/layouts/OrganiserLayout.vue'
 import EventCard from '@/components/EventCard.vue'
 import { useEventStore } from '@/stores/eventStore'
+import { useCategoryStore } from '@/stores/categoryStore'
+import { categorySlug } from '@/lib/category'
 import type { CategoryType, EventItem } from '@/types/event'
 import type { FormInstance, FormRules } from 'element-plus'
 import { handlePosterError } from '@/lib/posterFallback'
@@ -264,6 +266,7 @@ import { ElMessage } from 'element-plus'
 const route = useRoute()
 const router = useRouter()
 const eventStore = useEventStore()
+const categoryStore = useCategoryStore()
 
 const formRef = ref<FormInstance>()
 const isSubmitting = ref(false)
@@ -311,7 +314,7 @@ const presetPosters = [
 // Form Reactive Model
 const formData = reactive({
   title: '',
-  category: 'Tech' as CategoryType,
+  category: 'tech' as CategoryType,
   organiserName: '',
   dateTimeRange: [] as string[],
   location: '',
@@ -363,7 +366,7 @@ const previewEvent = computed<EventItem>(() => {
     id: editingEventId.value || 'preview-id',
     title: formData.title || 'Untitled Event Title',
     description: formData.description || 'Event description placeholder text goes here.',
-    category: formData.category,
+    category: categoryStore.labelFor(formData.category),
     posterUrl: formData.posterUrl || presetPosters[0]?.url || '',
     startTime: startStr,
     endTime: endStr,
@@ -383,7 +386,13 @@ const previewEvent = computed<EventItem>(() => {
 })
 
 // Lifecycle: Check edit mode query/param
-onMounted(() => {
+onMounted(async () => {
+  try {
+    await categoryStore.fetchCategories()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to load event categories.')
+  }
+
   const idParam = route.query.id as string
   if (idParam) {
     const existing = eventStore.events.find((e) => e.id === idParam)
@@ -391,7 +400,7 @@ onMounted(() => {
       isEditMode.value = true
       editingEventId.value = existing.id
       formData.title = existing.title
-      formData.category = existing.category
+      formData.category = categorySlug(existing.category)
       formData.organiserName = existing.organiser.name
       formData.dateTimeRange = [existing.startTime, existing.endTime]
       formData.location = existing.location
@@ -399,6 +408,8 @@ onMounted(() => {
       formData.posterUrl = existing.posterUrl
       formData.description = existing.description
     }
+  } else if (!categoryStore.activeCategories.some((category) => category.slug === formData.category)) {
+    formData.category = categoryStore.activeCategories[0]?.slug ?? ''
   }
 })
 

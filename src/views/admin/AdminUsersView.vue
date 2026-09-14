@@ -19,12 +19,16 @@
           <el-option label="Organiser" value="organiser" />
           <el-option label="Admin" value="admin" />
         </el-select>
+
+        <el-button :loading="loadingUsers" @click="loadUsers">Refresh</el-button>
       </div>
     </div>
 
+    <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" />
+
     <!-- Users Table Card -->
     <div class="table-container">
-      <el-table :data="filteredUsers" style="width: 100%" size="large">
+      <el-table v-loading="loadingUsers" :data="filteredUsers" style="width: 100%" size="large">
         <el-table-column label="User Profile" min-width="260">
           <template #default="{ row }">
             <div class="user-profile-cell">
@@ -62,7 +66,13 @@
         <el-table-column label="Actions" width="220" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-button type="primary" size="small" plain @click="openRoleModal(row)">
+              <el-button
+                type="primary"
+                size="small"
+                plain
+                :disabled="row.id === authStore.currentUser?.id"
+                @click="openRoleModal(row)"
+              >
                 Change Role
               </el-button>
 
@@ -71,6 +81,8 @@
                 type="danger"
                 size="small"
                 plain
+                :loading="updatingUserId === row.id"
+                :disabled="row.id === authStore.currentUser?.id"
                 @click="toggleStatus(row)"
               >
                 Suspend
@@ -80,6 +92,8 @@
                 type="success"
                 size="small"
                 plain
+                :loading="updatingUserId === row.id"
+                :disabled="row.id === authStore.currentUser?.id"
                 @click="toggleStatus(row)"
               >
                 Unban
@@ -106,65 +120,33 @@
       </div>
       <template #footer>
         <el-button @click="dialogVisible = false">Cancel</el-button>
-        <el-button type="danger" @click="saveRoleChange">Save Role</el-button>
+        <el-button type="danger" :loading="updatingUserId === editingUser?.id" @click="saveRoleChange">Save Role</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
+import { useAdminStore, type AdminUser, type AdminUserRole } from '@/stores/adminStore'
+import { useAuthStore } from '@/stores/authStore'
+
+const adminStore = useAdminStore()
+const authStore = useAuthStore()
+const { users, loadingUsers, errorMessage } = storeToRefs(adminStore)
 
 const searchQuery = ref('')
 const roleFilter = ref('')
 const dialogVisible = ref(false)
-const editingUser = ref<any>(null)
-const selectedNewRole = ref('student')
-
-// Mock Users List
-const usersList = ref([
-  {
-    id: 1,
-    name: 'Dr. Sarah Jenkins',
-    email: 'sarah.jenkins@campus.edu',
-    studentId: 'FAC-202109',
-    department: 'School of Computer Science',
-    role: 'organiser',
-    status: 'active',
-  },
-  {
-    id: 2,
-    name: 'Alexander Chen',
-    email: 'alex.chen@student.campus.edu',
-    studentId: '202308129',
-    department: 'Software Engineering',
-    role: 'student',
-    status: 'active',
-  },
-  {
-    id: 3,
-    name: 'Emily Davis',
-    email: 'emily.davis@campus.edu',
-    studentId: 'ADM-1002',
-    department: 'Student Affairs Center',
-    role: 'admin',
-    status: 'active',
-  },
-  {
-    id: 4,
-    name: 'Michael Scott',
-    email: 'm.scott@temp.com',
-    studentId: '202209441',
-    department: 'Business School',
-    role: 'student',
-    status: 'suspended',
-  },
-])
+const editingUser = ref<AdminUser | null>(null)
+const selectedNewRole = ref<AdminUserRole>('student')
+const updatingUserId = ref<string | null>(null)
 
 const filteredUsers = computed(() => {
-  return usersList.value.filter((user) => {
+  return users.value.filter((user) => {
     if (roleFilter.value && user.role !== roleFilter.value) return false
     if (searchQuery.value) {
       const q = searchQuery.value.toLowerCase()
@@ -187,33 +169,58 @@ function getRoleTagType(role: string) {
   }
 }
 
-function openRoleModal(user: any) {
+function openRoleModal(user: AdminUser) {
   editingUser.value = user
   selectedNewRole.value = user.role
   dialogVisible.value = true
 }
 
-function saveRoleChange() {
+async function saveRoleChange() {
   if (editingUser.value) {
-    editingUser.value.role = selectedNewRole.value
-    ElMessage.success(`Updated role for ${editingUser.value.name} to ${selectedNewRole.value.toUpperCase()}.`)
-    dialogVisible.value = false
+    const user = editingUser.value
+    updatingUserId.value = user.id
+    try {
+      await adminStore.updateUserAccess(user.id, selectedNewRole.value, user.status)
+      ElMessage.success(`Updated role for ${user.name} to ${selectedNewRole.value.toUpperCase()}.`)
+      dialogVisible.value = false
+    } catch (error) {
+      ElMessage.error(error instanceof Error ? error.message : 'Unable to update the user role.')
+    } finally {
+      updatingUserId.value = null
+    }
   }
 }
 
-function toggleStatus(user: any) {
+async function toggleStatus(user: AdminUser) {
   const newStatus = user.status === 'active' ? 'suspended' : 'active'
   const actionText = newStatus === 'suspended' ? 'Suspend' : 'Unban'
 
-  ElMessageBox.confirm(`Are you sure you want to ${actionText.toLowerCase()} user "${user.name}"?`, 'Confirm User Status Change', {
-    confirmButtonText: actionText,
-    cancelButtonText: 'Cancel',
-    type: newStatus === 'suspended' ? 'warning' : 'info',
-  }).then(() => {
-    user.status = newStatus
+  try {
+    await ElMessageBox.confirm(`Are you sure you want to ${actionText.toLowerCase()} user "${user.name}"?`, 'Confirm User Status Change', {
+      confirmButtonText: actionText,
+      cancelButtonText: 'Cancel',
+      type: newStatus === 'suspended' ? 'warning' : 'info',
+    })
+    updatingUserId.value = user.id
+    await adminStore.updateUserAccess(user.id, user.role, newStatus)
     ElMessage.success(`User ${user.name} status updated to ${newStatus}.`)
-  }).catch(() => {})
+  } catch (error) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error instanceof Error ? error.message : 'Unable to update the account status.')
+  } finally {
+    updatingUserId.value = null
+  }
 }
+
+async function loadUsers() {
+  try {
+    await adminStore.fetchUsers()
+  } catch {
+    ElMessage.error(errorMessage.value || 'Unable to load user accounts.')
+  }
+}
+
+onMounted(loadUsers)
 </script>
 
 <style scoped>

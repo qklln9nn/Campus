@@ -124,7 +124,6 @@ import {
   Plus,
   DataBoard,
   ArrowDown,
-  User,
   UserFilled,
   SwitchButton,
   Search,

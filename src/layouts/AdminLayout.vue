@@ -33,7 +33,7 @@
         <!-- System Alerts / Pending Count Badge -->
         <el-dropdown trigger="click">
           <div class="notification-badge" title="Pending Notifications">
-            <el-badge :value="14" class="item" type="danger">
+            <el-badge :value="notificationCount" :hidden="notificationCount === 0" class="item" type="danger">
               <el-icon class="bell-icon"><Bell /></el-icon>
             </el-badge>
           </div>
@@ -42,11 +42,11 @@
               <div class="dropdown-header">System Alerts</div>
               <el-dropdown-item @click="router.push('/admin/events')">
                 <el-icon color="#e6a23c"><WarningFilled /></el-icon>
-                <span>12 Event approvals pending</span>
+                <span>{{ pendingEventCount }} event approvals pending</span>
               </el-dropdown-item>
               <el-dropdown-item @click="router.push('/admin/reports')">
                 <el-icon color="#f56c6c"><CircleCloseFilled /></el-icon>
-                <span>2 Violation reports received</span>
+                <span>{{ pendingReportCount }} violation reports pending</span>
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -121,9 +121,9 @@
 
         <!-- Sidebar Status Footer Widget -->
         <div v-if="!isSidebarCollapsed" class="sidebar-footer-widget">
-          <div class="widget-title">SYSTEM HEALTH</div>
-          <div class="widget-status">
-            <span class="status-dot green" /> All Systems Operational
+          <div class="widget-title">DATABASE HEALTH</div>
+          <div class="widget-status" :class="systemHealth">
+            <span class="status-dot" :class="healthDotClass" /> {{ healthLabel }}
           </div>
         </div>
       </aside>
@@ -137,10 +137,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/authStore'
+import { useAdminStore } from '@/stores/adminStore'
+import { useModerationStore } from '@/stores/moderationStore'
 import {
   Management,
   Expand,
@@ -148,7 +151,6 @@ import {
   HomeFilled,
   Bell,
   Setting,
-  User,
   UserFilled,
   ArrowDown,
   SwitchButton,
@@ -164,8 +166,23 @@ import {
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const adminStore = useAdminStore()
+const moderationStore = useModerationStore()
+const { systemHealth } = storeToRefs(adminStore)
+const { pendingEventCount, pendingReportCount } = storeToRefs(moderationStore)
 
 const isSidebarCollapsed = ref(false)
+const notificationCount = computed(() => pendingEventCount.value + pendingReportCount.value)
+const healthLabel = computed(() => {
+  if (systemHealth.value === 'operational') return 'Database Connected'
+  if (systemHealth.value === 'unavailable') return 'Database Unavailable'
+  return 'Checking Connection'
+})
+const healthDotClass = computed(() => {
+  if (systemHealth.value === 'operational') return 'green'
+  if (systemHealth.value === 'unavailable') return 'red'
+  return 'amber'
+})
 
 async function handleLogout() {
   try {
@@ -181,6 +198,14 @@ const activeMenuIndex = computed(() => {
   // Handle root /admin redirection highlight
   if (route.path === '/admin') return '/admin/dashboard'
   return route.path
+})
+
+onMounted(() => {
+  void Promise.allSettled([
+    moderationStore.fetchEvents(),
+    moderationStore.fetchReports(),
+    adminStore.checkSystemHealth(),
+  ])
 })
 </script>
 
@@ -499,6 +524,14 @@ const activeMenuIndex = computed(() => {
 .status-dot.green {
   background-color: #10b981;
   box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.status-dot.amber {
+  background-color: #f59e0b;
+}
+
+.status-dot.red {
+  background-color: #ef4444;
 }
 
 /* Main Content Area */
