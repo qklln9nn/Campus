@@ -1,0 +1,391 @@
+.event-card {
+  min-width: 0;
+  width: 100%;
+  color: #11213d;
+  font-family: 'Lexend Variable', sans-serif;
+  background: #ffffff;
+  border: 1px solid #d8d5ce;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(17, 33, 61, 0.05);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease;
+}
+
+@media (hover: hover) {
+  .event-card:hover {
+    transform: translateY(-4px);
+    border-color: #1f57a8;
+    /* 匹配 Homepage 招牌的立体偏移阴影 */
+    box-shadow: 6px 12px 24px rgba(17, 33, 61, 0.12);
+  }
+}
+
+/* 2. 海报封面：匹配复古相框感，包含微动效 */
+.event-cover {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3; /* 推荐 4:3 比例，配合网格看更自然 */
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #e7e2d8;
+  border-radius: 12px;
+  background: #f0ebe1; /* 暖调底色 */
+  cursor: pointer;
+}
+
+.event-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+@media (hover: hover) {
+  .event-cover:hover img {
+    transform: scale(1.04);
+  }
+}
+
+/* 3. 悬浮提示胶囊按钮：匹配 Top Header 的 Capsule 样式 */
+.cover-hint {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(216, 213, 206, 0.6);
+  color: #11213d;
+  font-family: 'Lexend Variable', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+@media (hover: hover) {
+  .event-cover:hover .cover-hint {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.event-cover:focus-visible .cover-hint {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 4. 卡片文字内容区 */
+.event-content {
+  padding: 16px 4px 4px;
+  font-family: 'Lexend Variable', sans-serif;
+}
+
+/* 时间排期：采用 Hero-kicker 的高亮蓝 */
+.event-schedule {
+  margin: 0 0 6px;
+  color: #2459a9;
+  font-size: 0.85rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+/* 标题 */
+.event-title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+.event-title button {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #11213d;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 750;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.event-title button:hover {
+  color: #1f57a8;
+}
+
+/* 地点信息 */
+.event-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #5e6c80;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.event-location .el-icon {
+  flex-shrink: 0;
+  color: #2459a9;
+}
+
+.event-location span {
+  overflow-wrap: anywhere;
+}
+
+/* 报名状态提示 */
+.event-status {
+  margin: 10px 0 0;
+  color: #d48b5b; /* 匹配主页 .category-tab.active 的暖橙色 */
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.event-status.is-registered {
+  color: #28704b;
+}
+
+/* 5. 底部工具栏与辅助按钮 */
+.event-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e7e2d8;
+}
+
+.event-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: #5e6c80;
+  font-family: 'Lexend Variable', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.event-tool:hover {
+  background: #e8edf3;
+  color: #1f57a8;
+}
+
+.save-tool.is-saved {
+  color: #d48b5b;
+  background: #fdf6f0;
+  border-color: #f3dfd0;
+}
+
+/* 6. AI Summary 展开区域：类似 Homepage 弹窗/贴纸风格 */
+.ai-summary {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid #e7e2d8;
+  border-radius: 12px;
+  background: #fdfbf7;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.ai-summary-line {
+  margin: 0 0 8px;
+  color: #5e6c80;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.ai-summary-line:last-child {
+  margin-bottom: 0;
+}
+
+.ai-summary-line strong {
+  color: #11213d;
+}
+
+.ai-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #5e6c80;
+  font-size: 0.84rem;
+}
+
+.ai-error p {
+  margin: 0 0 8px;
+  color: #a54444;
+  font-size: 0.84rem;
+}
+
+.ai-error button {
+  padding: 4px 12px;
+  border: 1px solid #d8d5ce;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #11213d;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 7. 弹窗样式优化 (Modal Dialog Overrides) */
+.event-details {
+  color: #11213d;
+  font-family: 'Lexend Variable', sans-serif;
+}
+
+.details-poster {
+  display: block;
+  width: 100%;
+  height: 280px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  border: 1px solid #e7e2d8;
+  background: #f0ebe1;
+  object-fit: cover;
+}
+
+.details-category {
+  display: inline-block;
+  padding: 4px 12px;
+  margin-bottom: 12px;
+  background: #e8edf3;
+  color: #1f57a8;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.event-details h2 {
+  margin: 0 0 8px;
+  color: #11213d;
+  font-size: 1.6rem;
+  line-height: 1.25;
+  font-weight: 760;
+}
+
+.details-organiser {
+  margin: 0;
+  color: #5e6c80;
+  font-size: 0.9rem;
+}
+
+.details-facts {
+  display: grid;
+  gap: 14px;
+  margin: 20px 0;
+  padding: 16px 0;
+  border-top: 1px solid #e7e2d8;
+  border-bottom: 1px solid #e7e2d8;
+}
+
+.details-facts > div {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.details-facts dt {
+  color: #11213d;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.details-facts dd {
+  margin: 0;
+  color: #5e6c80;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.details-description h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #11213d;
+}
+
+.details-description p {
+  margin: 0;
+  color: #5e6c80;
+  font-size: 0.92rem;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.details-registration-status {
+  margin: 16px 0 0;
+  color: #28704b;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.details-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #e7e2d8;
+}
+
+.report-link {
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: #718096;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.report-link:hover {
+  color: #a54444;
+}
+
+.event-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 键盘可访问性 */
+.event-card button:focus-visible,
+.event-details button:focus-visible {
+  outline: 2px solid #1f57a8;
+  outline-offset: 2px;
+}
+
+/* 响应式调整 */
+@max-width 600px {
+  .event-card {
+    border-radius: 16px;
+  }
+  .details-facts > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

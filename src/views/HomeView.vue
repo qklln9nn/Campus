@@ -452,5 +452,5 @@ function handleCreateEvent() {
 </script>
 
 <style scoped>
-@import '@/assets/styles/home.css';
+@import '@/assets/styles/Home.css';
 </style>

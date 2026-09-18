@@ -1,0 +1,366 @@
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  background-color: #f7f5ef;
+  min-height: 100vh;
+  padding: 40px 48px;
+}
+/* 2. Page Header - 左右分栏布局 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.header-titles {
+  flex: 1;
+  min-width: 320px;
+}
+.main-title {
+  font-family: 'Lexend Variable', sans-serif;
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #11213d; /* 深蓝主字色 */
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+.sub-title {
+  font-size: 1rem;
+  color: #5e6c80;
+  margin: 8px 0 0 0;
+  line-height:1.6;
+}
+
+/* 3. Control Bar - 胶囊Tab优化，轻盈悬浮流线布局 */
+.control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding:16px 20px;
+  background: rgba(255,255,255,0.65);
+  border-radius:18px;
+  border:1px solid #e7e2d8;
+}
+
+.reset-text-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  color: #d48b5b; /* 暖橙色 */
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 7px 14px;
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+.reset-text-btn:hover {
+  background-color: rgba(212, 139, 91, 0.1);
+}
+
+/* 4. 卡片网格区域 */
+.content-body {
+  margin-top: 8px;
+}
+.card-col {
+  margin-bottom: 32px;
+}
+/* 卡片hover效果，加到EventCard外层，给卡片上浮 */
+:deep(.clickable-card-wrapper) {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+:deep(.clickable-card-wrapper:hover) {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 24px rgba(17, 33, 61, 0.12);
+}
+
+/* 空状态 */
+.empty-state-wrapper {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 80px 24px;
+  border: 1px solid #e7e2d8;
+}
+.empty-state-wrapper :deep(.el-empty__description) {
+  color:#5e6c80;
+  font-size:1rem;
+}
+
+/* 5. 分页 */
+.pagination-container {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 12px;
+}
+.pagination-container :deep(.el-pagination.is-background .el-pager li.is-active) {
+  background-color: #1f57a8 !important;
+}
+
+/* 6. 杂志质感弹窗 (Dialog) */
+.magazine-dialog :deep(.el-dialog) {
+  border-radius: 24px;
+  overflow: hidden;
+  padding: 0;
+  box-shadow: 0 24px 48px rgba(17, 33, 61, 0.14);
+}
+.magazine-dialog :deep(.el-dialog__header) {
+  padding: 28px 32px 12px 32px;
+  margin-right: 0;
+}
+.magazine-dialog :deep(.el-dialog__title) {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #11213d;
+}
+.magazine-dialog :deep(.el-dialog__body) {
+  padding: 12px 32px 28px 32px;
+}
+.modal-event-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.modal-hero-cover {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  border-radius: 18px;
+  overflow: hidden;
+}
+.modal-hero-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.category-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  color: #d48b5b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 999px;
+}
+.modal-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #11213d;
+  margin: 0;
+  line-height: 1.3;
+}
+.modal-desc {
+  font-size: 0.92rem;
+  color: #5e6c80;
+  line-height: 1.7;
+  margin: 0;
+}
+/* 网格交织式元信息 */
+.modal-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  background: #f7f5ef;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid #e7e2d8;
+}
+.meta-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.meta-item.full-width {
+  grid-column: span 2;
+}
+.meta-item .el-icon {
+  color: #1f57a8;
+  font-size: 1.25rem;
+  margin-top: 2px;
+}
+.meta-item label {
+  display: block;
+  font-size: 0.74rem;
+  color: #718096;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing:0.05em;
+}
+.meta-item span {
+  font-size: 0.88rem;
+  color: #11213d;
+  font-weight: 600;
+}
+.notice-block {
+  margin-top: 6px;
+}
+
+/* 按钮规范 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+}
+.brand-btn {
+  background-color: #1f57a8;
+  color: #ffffff;
+  border: none;
+  padding: 11px 26px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.24s ease;
+}
+.brand-btn:hover {
+  background-color: #174787;
+  transform: translateY(-2px);
+  box-shadow:0 6px 14px rgba(31,87,168,0.22);
+}
+.ghost-btn {
+  background: transparent;
+  border: 1px solid #e7e2d8;
+  color: #5e6c80;
+  padding: 11px 22px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ghost-btn:hover {
+  background-color: #f1f5f9;
+}
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #d9d6ce;
+}
+
+.page-eyebrow {
+  display: block;
+  margin-bottom: 10px;
+  color: #1f57a8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.main-title {
+  margin: 0;
+  color: #11213d;
+  font-size: 2.5rem;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+.sub-title {
+  max-width: 620px;
+  margin: 10px 0 0;
+  color: #5e6c80;
+  line-height: 1.65;
+}
+
+.result-summary {
+  min-width: 110px;
+  text-align: right;
+}
+
+.result-summary strong {
+  display: block;
+  color: #11213d;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.result-summary span {
+  color: #718096;
+  font-size: 0.8rem;
+}
+
+.control-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.filter-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.filter-label {
+  margin-right: 8px;
+  padding-bottom: 10px;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.filter-select {
+  width: 190px;
+}
+
+.filter-select :deep(.el-select__wrapper) {
+  min-height: 42px;
+  background: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px #d9d6ce inset;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    align-items: flex-start;
+  }
+
+  .result-summary {
+    text-align: left;
+  }
+
+  .control-bar,
+  .filter-group {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+}
+
+/* ========= 移动端响应式 ========= */
+@media (max-width:768px){
+  .dashboard-page{
+    padding:24px 16px;
+    gap:24px;
+  }
+  .main-title{
+    font-size:1.8rem;
+  }
+  .control-bar{
+    flex-direction:column;
+    align-items: flex-start;
+  }
+  .modal-meta-grid{
+    grid-template-columns:1fr;
+  }
+  .meta-item.full-width{
+    grid-column: span 1;
+  }
+}
