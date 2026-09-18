@@ -1,0 +1,195 @@
+.auth-page {
+  min-height: 100vh;
+  background-color: #f7f5ef;
+  display: flex;
+  flex-direction: column;
+  color: #0f172a;
+}
+
+/* 2. Header Styles */
+.auth-header {
+  position: sticky;
+  top: 16px;
+  z-index: 100;
+
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: rgba(230, 237, 247, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  transition: all 0.3s ease;
+
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.brand-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 20px;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.brand-text {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+
+.brand-highlight {
+  color: #2563eb;
+}
+
+.back-home-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.back-home-btn:hover {
+  color: #1f57a8;
+}
+
+/* 3. Main Form Card Container */
+.auth-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+}
+
+.auth-card-wrapper {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  padding: 40px 36px;
+  border: 1px solid #e7e2d8;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.05);
+}
+
+.auth-card-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.auth-card-header h2 {
+  font-family: 'Lexend Variable', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #11213d;
+  margin-bottom: 8px;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  color: #5e6c80;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* 4. Element Plus Component Overrides */
+.auth-tabs :deep(.el-tabs__item) {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 12px 0;
+}
+
+.auth-tabs :deep(.el-tabs__item.is-active) {
+  color: #d48b5b !important;
+}
+
+.auth-tabs :deep(.el-tabs__active-bar) {
+  background-color: #d48b5b !important;
+  height: 3px;
+  border-radius: 3px;
+}
+
+.registration-notice {
+  margin-top: 16px;
+  border-radius: 8px;
+}
+
+.auth-form {
+  margin-top: 20px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.half-width {
+  flex: 1;
+}
+
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.forgot-link {
+  color: #1f57a8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.forgot-link:hover {
+  color: #174787;
+  text-decoration: underline;
+}
+.auth-submit-btn {
+  width: 100%;
+  height: 48px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 10px;
+  background-color: #1f57a8 !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(31, 87, 168, 0.25);
+  transition: all 0.2s ease;
+}
+
+.auth-submit-btn:hover {
+  background-color: #174787 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(31, 87, 168, 0.35);
+}
+
+.auth-submit-btn:active {
+  transform: translateY(0);
+}
+
+:deep(.scrollable-select-popper .el-select-dropdown__wrap) {
+  max-height: 190px !important;
+  overflow-y: auto !important;
+}
