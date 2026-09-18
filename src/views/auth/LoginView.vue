@@ -33,27 +33,27 @@
         <el-tabs v-model="activeTab" class="auth-tabs" stretch>
           <!-- Sign In Tab -->
           <el-tab-pane label="Sign In" name="signin">
-            <el-form 
+            <el-form
               ref="loginFormRef"
-              :model="loginForm" 
+              :model="loginForm"
               :rules="loginRules"
               label-position="top"
               class="auth-form"
               @submit.prevent="handleLogin"
             >
               <el-form-item label="Campus Email" prop="email">
-                <el-input 
-                  v-model.trim="loginForm.email" 
-                  placeholder="student@campus.edu" 
+                <el-input
+                  v-model.trim="loginForm.email"
+                  placeholder="student@campus.edu"
                   :prefix-icon="User"
                 />
               </el-form-item>
 
               <el-form-item label="Password" prop="password">
-                <el-input 
-                  v-model="loginForm.password" 
-                  type="password" 
-                  placeholder="Enter your password" 
+                <el-input
+                  v-model="loginForm.password"
+                  type="password"
+                  placeholder="Enter your password"
                   show-password
                   :prefix-icon="Lock"
                 />
@@ -64,10 +64,10 @@
                 <a href="#" class="forgot-link" @click.prevent="handleForgotPassword">Forgot password?</a>
               </div>
 
-              <el-button 
-                type="primary" 
-                size="large" 
-                class="auth-submit-btn" 
+              <el-button
+                type="primary"
+                size="large"
+                class="auth-submit-btn"
                 :loading="isSubmitting"
                 native-type="submit"
               >
@@ -78,9 +78,9 @@
 
           <!-- Register Tab -->
           <el-tab-pane label="Register Account" name="register">
-            <el-form 
+            <el-form
               ref="registerFormRef"
-              :model="registerForm" 
+              :model="registerForm"
               :rules="registerRules"
               label-position="top"
               class="auth-form"
@@ -127,21 +127,21 @@
               </div>
 
               <el-form-item label="Password" prop="password">
-                <el-input 
-                  v-model="registerForm.password" 
-                  type="password" 
-                  placeholder="At least 6 characters" 
-                  show-password 
+                <el-input
+                  v-model="registerForm.password"
+                  type="password"
+                  placeholder="At least 6 characters"
+                  show-password
                   :prefix-icon="Lock"
                 />
               </el-form-item>
 
               <el-form-item label="Confirm Password" prop="confirmPassword">
-                <el-input 
-                  v-model="registerForm.confirmPassword" 
-                  type="password" 
-                  placeholder="Re-enter password" 
-                  show-password 
+                <el-input
+                  v-model="registerForm.confirmPassword"
+                  type="password"
+                  placeholder="Re-enter password"
+                  show-password
                   :prefix-icon="Lock"
                 />
               </el-form-item>
@@ -152,9 +152,9 @@
                 </el-checkbox>
               </el-form-item>
 
-              <el-button 
-                type="primary" 
-                size="large" 
+              <el-button
+                type="primary"
+                size="large"
                 class="auth-submit-btn"
                 :loading="isSubmitting"
                 native-type="submit"
@@ -244,7 +244,7 @@ const registerRules: FormRules = {
     { min: 6, message: 'At least 6 characters', trigger: 'blur' }
   ],
   confirmPassword: [
-    { 
+    {
       validator: (_rule, value, callback) => {
         if (!value) {
           callback(new Error('Please confirm your password'))
@@ -253,8 +253,8 @@ const registerRules: FormRules = {
         } else {
           callback()
         }
-      }, 
-      trigger: ['blur', 'change'] 
+      },
+      trigger: ['blur', 'change']
     }
   ]
 }
@@ -348,201 +348,4 @@ async function handleForgotPassword() {
 }
 </script>
 
-<style scoped>
-.auth-page {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #312e81 100%);
-  display: flex;
-  flex-direction: column;
-}
-
-.auth-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 40px;
-}
-
-.brand-link {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-decoration: none;
-}
-
-.brand-icon {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 22px;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
-}
-
-.brand-text {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: -0.5px;
-}
-
-.brand-highlight {
-  color: #818cf8;
-}
-
-.back-home-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #94a3b8;
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.back-home-btn:hover {
-  color: #ffffff;
-}
-
-.auth-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 30px 20px;
-}
-
-.auth-card-wrapper {
-  background: #ffffff;
-  border-radius: 20px;
-  width: 100%;
-  max-width: 480px;
-  padding: 36px 32px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
-}
-
-.auth-card-header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.auth-card-header h2 {
-  font-size: 1.65rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 6px;
-}
-
-.subtitle {
-  color: #64748b;
-  font-size: 0.88rem;
-  line-height: 1.4;
-}
-
-.auth-tabs :deep(.el-tabs__item) {
-  font-size: 0.95rem;
-  font-weight: 600;
-  padding: 12px 0;
-}
-
-.registration-notice {
-  margin-top: 16px;
-}
-
-.auth-form {
-  margin-top: 16px;
-}
-
-.full-width {
-  width: 100%;
-}
-
-.form-row {
-  display: flex;
-  gap: 12px;
-}
-
-.half-width {
-  flex: 1;
-}
-
-.role-radio-group {
-  width: 100%;
-  display: flex;
-}
-
-.role-radio-group :deep(.el-radio-button) {
-  flex: 1;
-}
-
-.role-radio-group :deep(.el-radio-button__inner) {
-  width: 100%;
-}
-
-.form-options {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.forgot-link {
-  color: #4f46e5;
-  font-size: 0.85rem;
-  text-decoration: none;
-}
-
-.forgot-link:hover {
-  text-decoration: underline;
-}
-
-.auth-submit-btn {
-  width: 100%;
-  height: 46px;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-  border: none;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-}
-
-.auth-submit-btn:hover {
-  opacity: 0.95;
-}
-
-.demo-accounts-box {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px dashed #e2e8f0;
-  text-align: center;
-}
-
-.demo-label {
-  display: block;
-  font-size: 0.8rem;
-  color: #64748b;
-  margin-bottom: 10px;
-  font-weight: 500;
-}
-
-.demo-btns {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-</style>
-
-<style>
-/* Global Popper max-height override for dropdown scrollbar */
-.scrollable-select-popper .el-select-dropdown__wrap {
-  max-height: 190px !important;
-  overflow-y: auto !important;
-}
-</style>
+<style scoped src="@/assets/styles/AuthPage.css"></style>
