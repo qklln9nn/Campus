@@ -1,5 +1,5 @@
 .home-page{
-  background: #f7f5ef;
+  background: #e8edf3;
 }
 /* 1. Floating Capsule Header Navbar */
 .home-header {
@@ -9,7 +9,7 @@
   max-width: 1100px;
   margin: 0 auto;
   padding: 0 12px;
-  background: #e6edf7;
+  background: rgba(230, 237, 247, 0.85);
   backdrop-filter: blur(12px);
   border-radius: 999px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
@@ -100,7 +100,7 @@
 /* 2. Hero Section */
 .hero-section {
   padding: 150px 24px;
-  background: #f7f5ef;
+  background: #e8edf3;
   border-bottom: 1px solid #e7e2d8;
 }
 
@@ -189,7 +189,7 @@
   max-width: 1280px;
   margin: 0 auto;
   padding: 80px 24px;
-  border-bottom: 1px solid #e7e2d8;
+  border-bottom: 1px solid #f7f5ef;
 }
 
 .section-title {
@@ -210,7 +210,7 @@
 }
 
 .featured-section {
-  background: #e8edf3;
+  background: #f7f5ef;
 
 }
 
@@ -346,7 +346,7 @@
 /* 5. Organiser Section */
 .organiser-section {
   padding: 90px 24px;
-  background: #e8edf3;
+  background: #f7f5ef;
 }
 
 .organiser-content {
@@ -466,7 +466,7 @@
 .footer-container {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 64px 24px 48px;
+  padding: 15px 24px 48px;
   display: flex;
   justify-content: space-between;
   gap: 48px;
