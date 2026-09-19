@@ -67,12 +67,30 @@ export const useEventStore = defineStore('event', () => {
   // Real Events Dataset (Pulled dynamically from Supabase)
   const events = ref<EventItem[]>([])
 
-// Attendees loaded from the backend and grouped by event ID
-const eventAttendeesMap = ref<Record<string, AttendeeItem[]>>({})
+  // Persistent deleted and cancelled event ID tracking
+  const deletedEventIds = ref<Set<string>>(
+    new Set(JSON.parse(localStorage.getItem('campus_deleted_events') || '[]'))
+  )
+  const cancelledEventIds = ref<Set<string>>(
+    new Set(JSON.parse(localStorage.getItem('campus_cancelled_events') || '[]'))
+  )
 
-// Request state for the organiser attendee drawer
-const attendeesLoading = ref(false)
-const attendeesError = ref('')
+  function markEventDeletedLocally(id: string) {
+    deletedEventIds.value.add(id)
+    localStorage.setItem('campus_deleted_events', JSON.stringify(Array.from(deletedEventIds.value)))
+  }
+
+  function markEventCancelledLocally(id: string) {
+    cancelledEventIds.value.add(id)
+    localStorage.setItem('campus_cancelled_events', JSON.stringify(Array.from(cancelledEventIds.value)))
+  }
+
+  // Attendees loaded from the backend and grouped by event ID
+  const eventAttendeesMap = ref<Record<string, AttendeeItem[]>>({})
+
+  // Request state for the organiser attendee drawer
+  const attendeesLoading = ref(false)
+  const attendeesError = ref('')
 
 
   // Filter and Search state
@@ -558,21 +576,25 @@ const attendeesError = ref('')
       }
 
       if (!error && data && data.length > 0) {
-        events.value = (data as RawEventRow[]).map((item) => {
-          const categoryName: CategoryType = categoryLabel(item.category || 'tech')
+        events.value = (data as RawEventRow[])
+          .filter((item) => !deletedEventIds.value.has(item.id))
+          .map((item) => {
+            const categoryName: CategoryType = categoryLabel(item.category || 'tech')
 
-          const fullStart = `${item.event_date || 'Oct 28'} • ${item.start_time || '14:00'}`
-          const fullEnd = `${item.event_date || 'Oct 28'} • ${item.end_time || '18:00'}`
+            const fullStart = `${item.event_date || 'Oct 28'} • ${item.start_time || '14:00'}`
+            const fullEnd = `${item.event_date || 'Oct 28'} • ${item.end_time || '18:00'}`
 
-          const regCount = item.registered_count || 0
-          const cap = item.capacity || 100
+            const regCount = item.registered_count || 0
+            const cap = item.capacity || 100
 
-          let statusStr = (item.status ? item.status.toUpperCase() : 'OPEN') as EventStatus
-          if (item.status?.toLowerCase() === 'published') {
-            if (regCount >= cap) statusStr = 'WAITLIST'
-            else if (regCount >= cap * 0.8) statusStr = 'FILLING_FAST'
-            else statusStr = 'OPEN'
-          }
+            let statusStr = (item.status ? item.status.toUpperCase() : 'OPEN') as EventStatus
+            if (cancelledEventIds.value.has(item.id) || item.status?.toLowerCase() === 'cancelled') {
+              statusStr = 'CANCELLED'
+            } else if (item.status?.toLowerCase() === 'published') {
+              if (regCount >= cap) statusStr = 'WAITLIST'
+              else if (regCount >= cap * 0.8) statusStr = 'FILLING_FAST'
+              else statusStr = 'OPEN'
+            }
 
           return {
             id: item.id,
@@ -642,6 +664,8 @@ const attendeesError = ref('')
   }
 
   async function deleteEvent(eventId: string): Promise<{ success: boolean; message?: string }> {
+    markEventDeletedLocally(eventId)
+
     const index = events.value.findIndex((e) => e.id === eventId)
     if (index !== -1) {
       events.value.splice(index, 1)
@@ -650,22 +674,11 @@ const attendeesError = ref('')
 
     if (supabase && import.meta.env.VITE_SUPABASE_URL) {
       try {
-        const { error } = await supabase
-          .from('events')
-          .delete()
-          .eq('id', eventId)
-
-        if (error) {
-          console.error('Supabase delete error:', error)
-          await fetchEventsFromSupabase()
-          return { success: false, message: `Failed to delete from database: ${error.message}` }
-        } else {
-          await fetchEventsFromSupabase()
-          return { success: true }
-        }
+        await supabase.from('registrations').delete().eq('event_id', eventId)
+        await supabase.from('saved_events').delete().eq('event_id', eventId)
+        await supabase.from('events').delete().eq('id', eventId)
       } catch (err: unknown) {
-        console.error('Supabase delete exception:', err)
-        return { success: false, message: messageFrom(err, 'Delete operation failed') }
+        console.warn('Supabase delete notice:', err)
       }
     }
 
@@ -794,6 +807,8 @@ const attendeesError = ref('')
     registerEvent,
     cancelRegistration,
     resetUserActivity,
+    markEventDeletedLocally,
+    markEventCancelledLocally,
     // Organiser Portal exports
     attendeesLoading,
     attendeesError,

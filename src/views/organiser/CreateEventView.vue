@@ -1,686 +1,388 @@
 <template>
   <OrganiserLayout>
     <div class="create-event-page">
-      <!-- Top Page Header -->
-      <div class="page-header">
+      <header class="page-heading">
         <div>
-          <h2 class="page-title">{{ isEditMode ? 'Edit Campus Event' : 'Create New Campus Event' }}</h2>
-          <p class="page-subtitle">Fill in event details, then save a draft or submit it for administrator review.</p>
+          <button type="button" class="back-link" @click="handleCancel">← Back to my events</button>
+          <p class="eyebrow">ORGANISER WORKSPACE</p>
+          <h1>{{ isEditMode ? 'Edit event' : 'Create an event' }}</h1>
+          <p>Enter the information students need, then save a draft or send it for review.</p>
         </div>
-        <div class="header-actions">
-          <el-button @click="handleCancel">Cancel</el-button>
-          <el-button type="info" plain :loading="isSubmitting" @click="submitForm(formRef, true)">
-            <el-icon><Document /></el-icon> Save as Draft
-          </el-button>
-          <el-button type="primary" :loading="isSubmitting" @click="submitForm(formRef, false)">
-            <el-icon><Check /></el-icon> {{ isEditMode ? 'Save Changes' : 'Submit for Review' }}
-          </el-button>
-        </div>
+      </header>
+
+      <el-alert
+        v-if="loadError"
+        :title="loadError"
+        type="error"
+        :closable="false"
+        show-icon
+      />
+
+      <el-skeleton v-if="loadingPage" :rows="10" animated class="page-loading" />
+
+      <div v-else class="editor-layout">
+        <el-form
+          ref="formRef"
+          :model="formData"
+          :rules="formRules"
+          label-position="top"
+          class="event-form"
+        >
+          <section class="form-section">
+            <div class="section-heading">
+              <span>01</span>
+              <div><h2>Event details</h2><p>Give the event a clear name and category.</p></div>
+            </div>
+
+            <el-form-item label="Event title" prop="title">
+              <el-input v-model="formData.title" maxlength="80" show-word-limit placeholder="e.g. Student Research Evening" />
+            </el-form-item>
+
+            <el-form-item label="Category" prop="category">
+              <el-select v-model="formData.category" placeholder="Choose a category" style="width: 100%">
+                <el-option v-for="category in categoryStore.activeCategories" :key="category.slug"
+                  :label="category.name" :value="category.slug" />
+              </el-select>
+              <p v-if="categoryStore.error" class="field-note error-note">Categories could not be loaded. Refresh the page and try again.</p>
+            </el-form-item>
+
+            <el-form-item label="Description" prop="description">
+              <el-input v-model="formData.description" type="textarea" :rows="7" maxlength="2400"
+                show-word-limit placeholder="Explain what the event is, who it is for, and anything students should bring." />
+            </el-form-item>
+          </section>
+
+          <section class="form-section">
+            <div class="section-heading">
+              <span>02</span>
+              <div><h2>Time and place</h2><p>Events currently begin and end on the same date.</p></div>
+            </div>
+
+            <div class="two-fields">
+              <el-form-item label="Event date" prop="date">
+                <el-date-picker v-model="formData.date" type="date" value-format="YYYY-MM-DD"
+                  format="DD MMMM YYYY" placeholder="Select date" style="width: 100%" />
+              </el-form-item>
+              <el-form-item label="Start and end time" prop="timeRange">
+                <el-time-picker v-model="formData.timeRange" is-range value-format="HH:mm" format="HH:mm"
+                  range-separator="to" start-placeholder="Start" end-placeholder="End" style="width: 100%" />
+              </el-form-item>
+            </div>
+
+            <el-form-item label="Location" prop="location">
+              <el-input v-model="formData.location" maxlength="120" placeholder="Building and room, or online meeting link">
+                <template #prefix><el-icon><Location /></el-icon></template>
+              </el-input>
+              <div class="quick-options">
+                <button v-for="venue in venuePresets" :key="venue" type="button" @click="formData.location = venue">{{ venue }}</button>
+              </div>
+            </el-form-item>
+
+            <el-form-item label="Capacity" prop="capacity">
+              <el-input-number v-model="formData.capacity" :min="5" :max="2000" :step="5" controls-position="right" />
+              <p class="field-note">Students are automatically waitlisted after all places are taken.</p>
+            </el-form-item>
+          </section>
+
+          <section class="form-section">
+            <div class="section-heading">
+              <span>03</span>
+              <div><h2>Event poster</h2><p>Upload a local image, enter a public URL, or choose a preset.</p></div>
+            </div>
+
+            <div class="poster-upload-row">
+              <el-upload
+                action="#"
+                :auto-upload="false"
+                :show-file-list="false"
+                accept="image/*"
+                :on-change="handleLocalImageUpload"
+              >
+                <el-button type="primary" plain :loading="isUploadingImage">
+                  <el-icon class="el-icon--left"><Upload /></el-icon>
+                  Upload Local Image
+                </el-button>
+              </el-upload>
+              <span class="upload-tip">Supports JPG, PNG, WEBP (up to 5MB)</span>
+            </div>
+
+            <el-form-item label="Poster URL" prop="posterUrl">
+              <el-input v-model="formData.posterUrl" placeholder="https://example.com/event-poster.jpg">
+                <template #prefix><el-icon><Link /></el-icon></template>
+              </el-input>
+            </el-form-item>
+
+            <div class="poster-options" aria-label="Preset posters">
+              <button v-for="poster in presetPosters" :key="poster.url" type="button"
+                :class="{ selected: formData.posterUrl === poster.url }" @click="formData.posterUrl = poster.url">
+                <img :src="poster.url" :alt="poster.label" @error="handlePosterError" />
+                <span>{{ poster.label }}</span>
+              </button>
+            </div>
+          </section>
+
+          <footer class="form-actions">
+            <el-button :disabled="isSubmitting" @click="handleCancel">Cancel</el-button>
+            <el-button :loading="isSubmitting && submissionType === 'draft'" :disabled="isSubmitting"
+              @click="submitForm('draft')">Save Draft</el-button>
+            <el-button v-if="canSubmitForReview" type="primary" :loading="isSubmitting && submissionType === 'review'" :disabled="isSubmitting"
+              @click="submitForm('review')">
+              {{ isEditMode ? 'Submit Changes' : 'Submit for Review' }}
+            </el-button>
+          </footer>
+        </el-form>
+
+        <aside class="preview-column">
+          <p class="preview-label">STUDENT PREVIEW</p>
+          <article class="event-preview">
+            <img :src="previewPoster" alt="Event poster preview" @error="handlePreviewError" />
+            <div class="preview-body">
+              <p class="preview-date">{{ previewDate }}</p>
+              <h2>{{ formData.title.trim() || 'Your event title' }}</h2>
+              <p>{{ formData.location.trim() || 'Campus location' }}</p>
+              <span>{{ previewCategory }}</span>
+            </div>
+          </article>
+          <p class="preview-note">This is a simple preview. The final student card also includes registration and event-detail controls.</p>
+        </aside>
       </div>
-
-      <!-- Main Two-Column Layout -->
-      <el-row :gutter="24" class="form-grid">
-        <!-- Left Column: Complex Form -->
-        <el-col :xs="24" :lg="15">
-          <el-card class="form-card" shadow="never">
-            <el-form
-              ref="formRef"
-              :model="formData"
-              :rules="formRules"
-              label-position="top"
-              size="large"
-              class="event-form"
-            >
-              <!-- Section 1: Basic Info -->
-              <div class="form-section">
-                <h4 class="section-title">
-                  <el-icon><InfoFilled /></el-icon> General Details
-                </h4>
-
-                <el-form-item label="Event Title" prop="title">
-                  <el-input
-                    v-model="formData.title"
-                    placeholder="e.g. AI & Future Tech Summit 2026"
-                    maxlength="80"
-                    show-word-limit
-                    clearable
-                  />
-                </el-form-item>
-
-                <el-row :gutter="16">
-                  <el-col :span="12">
-                    <el-form-item label="Category" prop="category">
-                      <el-select v-model="formData.category" placeholder="Select category" style="width: 100%">
-                        <el-option
-                          v-for="category in categoryStore.activeCategories"
-                          :key="category.slug"
-                          :label="category.name"
-                          :value="category.slug"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-
-                  <el-col :span="12">
-                    <el-form-item label="Host Organiser Name" prop="organiserName">
-                      <el-input
-                        v-model="formData.organiserName"
-                        placeholder="e.g. School of Computer Science"
-                      />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-              </div>
-
-              <el-divider />
-
-              <!-- Section 2: Date, Time & Venue -->
-              <div class="form-section">
-                <h4 class="section-title">
-                  <el-icon><Calendar /></el-icon> Schedule & Venue Location
-                </h4>
-
-                <el-form-item label="Event Date & Time Range" prop="dateTimeRange">
-                  <el-date-picker
-                    v-model="formData.dateTimeRange"
-                    type="datetimerange"
-                    range-separator="To"
-                    start-placeholder="Start time"
-                    end-placeholder="End time"
-                    format="YYYY-MM-DD HH:mm"
-                    value-format="YYYY-MM-DD HH:mm"
-                    style="width: 100%"
-                  />
-                </el-form-item>
-
-                <el-form-item label="Event Venue Location" prop="location">
-                  <el-input
-                    v-model="formData.location"
-                    placeholder="Enter hall, building, or stadium location..."
-                    clearable
-                  >
-                    <template #prefix>
-                      <el-icon><Location /></el-icon>
-                    </template>
-                  </el-input>
-
-                  <!-- Location Preset Chips -->
-                  <div class="venue-presets">
-                    <span class="preset-label">Quick Presets:</span>
-                    <el-tag
-                      v-for="preset in venuePresets"
-                      :key="preset"
-                      size="small"
-                      effect="plain"
-                      class="preset-chip"
-                      @click="formData.location = preset"
-                    >
-                      + {{ preset }}
-                    </el-tag>
-                  </div>
-                </el-form-item>
-              </div>
-
-              <el-divider />
-
-              <!-- Section 3: Capacity & Rules -->
-              <div class="form-section">
-                <h4 class="section-title">
-                  <el-icon><User /></el-icon> Capacity & Waitlist Settings
-                </h4>
-
-                <el-row :gutter="16">
-                  <el-col :span="12">
-                    <el-form-item label="Maximum Seat Capacity" prop="capacity">
-                      <el-input-number
-                        v-model="formData.capacity"
-                        :min="5"
-                        :max="2000"
-                        :step="10"
-                        controls-position="right"
-                        style="width: 100%"
-                      />
-                    </el-form-item>
-                  </el-col>
-
-                  <el-col :span="12">
-                    <el-form-item label="Enable Auto Waitlist Queue">
-                      <div class="switch-row">
-                        <el-switch v-model="formData.enableWaitlist" active-text="Enabled" inactive-text="Disabled" />
-                        <span class="switch-hint">Allows queueing when seats are full.</span>
-                      </div>
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-              </div>
-
-              <el-divider />
-
-              <!-- Section 4: Poster Upload & Gallery -->
-              <div class="form-section">
-                <h4 class="section-title">
-                  <el-icon><Picture /></el-icon> Event Cover Poster
-                </h4>
-
-                <el-form-item label="Poster Image URL or Preset Upload" prop="posterUrl">
-                  <el-input v-model="formData.posterUrl" placeholder="Paste image URL or pick from presets below..." clearable>
-                    <template #prefix>
-                      <el-icon><Link /></el-icon>
-                    </template>
-                  </el-input>
-
-                  <!-- Preset Gallery Pickers -->
-                  <div class="poster-preset-gallery">
-                    <div class="preset-title">Or choose from curated HD presets:</div>
-                    <div class="gallery-grid">
-                      <div
-                        v-for="(img, idx) in presetPosters"
-                        :key="idx"
-                        class="gallery-item"
-                        :class="{ active: formData.posterUrl === img.url }"
-                        @click="formData.posterUrl = img.url"
-                      >
-                        <img
-                          :src="img.url"
-                          :alt="img.label"
-                          @error="e => handlePosterError(e)"
-                        />
-                        <span class="gallery-label">{{ img.label }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </el-form-item>
-              </div>
-
-              <el-divider />
-
-              <!-- Section 5: Description -->
-              <div class="form-section">
-                <h4 class="section-title">
-                  <el-icon><Document /></el-icon> Event Description & Guidelines
-                </h4>
-
-                <el-form-item label="Detailed Overview" prop="description">
-                  <el-input
-                    v-model="formData.description"
-                    type="textarea"
-                    :rows="4"
-                    placeholder="Provide overview, schedule highlights, prerequisites, or special instructions..."
-                  />
-                  <div class="word-limit-hint" :class="{ over: descriptionWordCount > MAX_DESCRIPTION_WORDS }">
-                    {{ descriptionWordCount }} / {{ MAX_DESCRIPTION_WORDS }} words
-                  </div>
-                </el-form-item>
-              </div>
-            </el-form>
-          </el-card>
-        </el-col>
-
-        <!-- Right Column: Live Card Preview -->
-        <el-col :xs="24" :lg="9">
-          <div class="preview-sticky">
-            <div class="preview-header">
-              <h3><el-icon><View /></el-icon> Live Card Preview</h3>
-              <span class="preview-subtitle">How students will see this event on the portal.</span>
-            </div>
-
-            <!-- Rendered Live Event Card -->
-            <EventCard :event="previewEvent" hide-action-btn hide-overlay-actions />
-
-            <div class="preview-tip-box">
-              <el-icon><Opportunity /></el-icon>
-              <span>Tip: High resolution 16:9 ratio poster images result in higher student engagement!</span>
-            </div>
-          </div>
-        </el-col>
-      </el-row>
     </div>
   </OrganiserLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import OrganiserLayout from '@/layouts/OrganiserLayout.vue'
-import EventCard from '@/components/EventCard.vue'
-import { useEventStore } from '@/stores/eventStore'
-import { useCategoryStore } from '@/stores/categoryStore'
-import { categorySlug } from '@/lib/category'
-import type { CategoryType, EventItem } from '@/types/event'
-import type { FormInstance, FormRules } from 'element-plus'
-import { handlePosterError } from '@/lib/posterFallback'
-import {
-  Check,
-  InfoFilled,
-  Calendar,
-  Location,
-  User,
-  Picture,
-  Link,
-  Document,
-  View,
-  Opportunity,
-} from '@element-plus/icons-vue'
+import { Link, Location, Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules, UploadFile } from 'element-plus'
+import OrganiserLayout from '@/layouts/OrganiserLayout.vue'
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/authStore'
+import { useCategoryStore } from '@/stores/categoryStore'
+import { useEventStore } from '@/stores/eventStore'
+import { categorySlug } from '@/lib/category'
+import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
+import type { EventStatus } from '@/types/event'
 
 const route = useRoute()
 const router = useRouter()
-const eventStore = useEventStore()
+const authStore = useAuthStore()
 const categoryStore = useCategoryStore()
-
+const eventStore = useEventStore()
 const formRef = ref<FormInstance>()
+const loadingPage = ref(true)
+const loadError = ref('')
 const isSubmitting = ref(false)
-const isEditMode = ref(false)
-const editingEventId = ref<string | null>(null)
+const isUploadingImage = ref(false)
+const submissionType = ref<'draft' | 'review' | ''>('')
+const editingEventId = ref('')
+const originalStatus = ref<EventStatus | null>(null)
+const isEditMode = computed(() => Boolean(editingEventId.value))
+const canSubmitForReview = computed(() => originalStatus.value !== 'CANCELLED')
 
-// Location Presets
-const venuePresets = [
-  'Innovation Center Auditorium A',
-  'Student Union Great Hall',
-  'Central Campus Stadium Field 1',
-  'Library Lecture Theatre 2',
-  'Campus Main Plaza & Lawn',
-  'Exhibition Hall B',
-]
+async function handleLocalImageUpload(file: UploadFile) {
+  const rawFile = file.raw
+  if (!rawFile) return
 
-// Preset Posters Collection
+  if (!rawFile.type.startsWith('image/')) {
+    ElMessage.error('Please select a valid image file.')
+    return
+  }
+  if (rawFile.size > 5 * 1024 * 1024) {
+    ElMessage.error('Image file size must be smaller than 5MB.')
+    return
+  }
+
+  isUploadingImage.value = true
+  try {
+    let uploadedUrl = ''
+
+    if (supabase && import.meta.env.VITE_SUPABASE_URL) {
+      const fileExt = rawFile.name.split('.').pop() || 'png'
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const filePath = `posters/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('event-posters')
+        .upload(filePath, rawFile, { cacheControl: '3600', upsert: true })
+
+      if (!uploadError) {
+        const { data: publicUrlData } = supabase.storage
+          .from('event-posters')
+          .getPublicUrl(filePath)
+        if (publicUrlData?.publicUrl) {
+          uploadedUrl = publicUrlData.publicUrl
+        }
+      }
+    }
+
+    if (!uploadedUrl) {
+      uploadedUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = (err) => reject(err)
+        reader.readAsDataURL(rawFile)
+      })
+    }
+
+    formData.posterUrl = uploadedUrl
+    ElMessage.success('Local image uploaded and preview updated!')
+  } catch (err) {
+    console.error('Local image upload error:', err)
+    ElMessage.error('Failed to process the selected image.')
+  } finally {
+    isUploadingImage.value = false
+  }
+}
+
+const venuePresets = ['Student Centre', 'Main Library', 'Recreation Centre', 'Online']
 const presetPosters = [
-  {
-    label: 'Tech Summit',
-    url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    label: 'Hackathon',
-    url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    label: 'Sports Stadium',
-    url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    label: 'Academic Lecture',
-    url: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    label: 'Cultural Fest',
-    url: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    label: 'Career Expo',
-    url: 'https://images.unsplash.com/photo-1560523131-75f82a9eb7ba?auto=format&fit=crop&w=800&q=80',
-  },
+  { label: 'Talk', url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=900&q=80' },
+  { label: 'Workshop', url: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&q=80' },
+  { label: 'Sport', url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=900&q=80' },
 ]
 
-// Form Reactive Model
 const formData = reactive({
   title: '',
-  category: 'tech' as CategoryType,
-  organiserName: '',
-  dateTimeRange: [] as string[],
-  location: '',
-  capacity: 100,
-  enableWaitlist: true,
-  posterUrl: presetPosters[0]?.url ?? '',
+  category: '',
   description: '',
+  date: '',
+  timeRange: [] as string[],
+  location: '',
+  capacity: 50,
+  posterUrl: presetPosters[0]?.url ?? '',
 })
 
-// Validation Rules
-const MAX_DESCRIPTION_WORDS = 400
-
-const descriptionWordCount = computed(() =>
-  formData.description.trim().split(/\s+/).filter(Boolean).length
-)
-
-const formRules = reactive<FormRules>({
+const formRules: FormRules = {
   title: [
-    { required: true, message: 'Please enter event title', trigger: 'blur' },
-    { min: 5, message: 'Title must be at least 5 characters', trigger: 'blur' },
+    { required: true, message: 'Enter an event title.', trigger: 'blur' },
+    { min: 5, message: 'Use at least 5 characters.', trigger: 'blur' },
   ],
-  category: [{ required: true, message: 'Please select category', trigger: 'change' }],
-  organiserName: [{ required: true, message: 'Please enter organiser name', trigger: 'blur' }],
-  dateTimeRange: [{ required: true, message: 'Please select date & time range', trigger: 'change' }],
-  location: [{ required: true, message: 'Please specify location venue', trigger: 'blur' }],
-  capacity: [{ required: true, message: 'Capacity is required', trigger: 'change' }],
-  posterUrl: [{ required: true, message: 'Please provide poster URL or pick a preset', trigger: 'blur' }],
+  category: [{ required: true, message: 'Choose a category.', trigger: 'change' }],
   description: [
-    { required: true, message: 'Please provide event description', trigger: 'blur' },
-    {
-      validator: (_rule: unknown, value: string, callback: (error?: Error) => void) => {
-        if (value.trim().split(/\s+/).filter(Boolean).length > MAX_DESCRIPTION_WORDS) {
-          callback(new Error(`Description must be ${MAX_DESCRIPTION_WORDS} words or fewer`))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'blur',
-    },
+    { required: true, message: 'Add an event description.', trigger: 'blur' },
+    { min: 20, message: 'Give students a little more information (at least 20 characters).', trigger: 'blur' },
   ],
-})
+  date: [{ required: true, message: 'Choose an event date.', trigger: 'change' }],
+  timeRange: [{ type: 'array', required: true, min: 2, message: 'Choose a start and end time.', trigger: 'change' }],
+  location: [{ required: true, message: 'Enter an event location.', trigger: 'blur' }],
+  capacity: [{ required: true, type: 'number', message: 'Enter the event capacity.', trigger: 'change' }],
+  posterUrl: [
+    { required: true, message: 'Enter a poster URL or choose a preset.', trigger: 'blur' },
+    { type: 'url', message: 'Enter a complete URL beginning with http:// or https://.', trigger: 'blur' },
+  ],
+}
 
-// Computed Live Preview Event Item Object
-const previewEvent = computed<EventItem>(() => {
-  const startStr = formData.dateTimeRange && formData.dateTimeRange[0] ? formData.dateTimeRange[0] : '2026-11-01 10:00'
-  const endStr = formData.dateTimeRange && formData.dateTimeRange[1] ? formData.dateTimeRange[1] : '2026-11-01 12:00'
+function extractDate(value: string) { return value.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? '' }
+function extractTime(value: string) { return value.match(/\d{1,2}:\d{2}/)?.[0]?.padStart(5, '0') ?? '' }
 
-  return {
-    id: editingEventId.value || 'preview-id',
-    title: formData.title || 'Untitled Event Title',
-    description: formData.description || 'Event description placeholder text goes here.',
-    category: categoryStore.labelFor(formData.category),
-    posterUrl: formData.posterUrl || presetPosters[0]?.url || '',
-    startTime: startStr,
-    endTime: endStr,
-    location: formData.location || 'Campus Main Hall',
-    organiser: {
-      name: formData.organiserName || 'Campus Host',
-      avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=Host',
-    },
-    capacity: formData.capacity,
-    registeredCount: isEditMode.value ? 24 : 0,
-    waitlistCount: 0,
-    status: 'OPEN',
-    isRegistered: false,
-    isWaitlisted: false,
-    isBookmarked: false,
-  }
-})
-
-// Lifecycle: Check edit mode query/param
 onMounted(async () => {
-  try {
-    await categoryStore.fetchCategories()
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Unable to load event categories.')
+  loadingPage.value = true
+  loadError.value = ''
+  const results = await Promise.allSettled([
+    categoryStore.fetchCategories(),
+    eventStore.fetchEventsFromSupabase(),
+  ])
+  if (results.every(result => result.status === 'rejected')) {
+    loadError.value = 'The event form could not load its data. Please refresh and try again.'
   }
 
-  const idParam = route.query.id as string
-  if (idParam) {
-    const existing = eventStore.events.find((e) => e.id === idParam)
-    if (existing) {
-      isEditMode.value = true
-      editingEventId.value = existing.id
-      formData.title = existing.title
-      formData.category = categorySlug(existing.category)
-      formData.organiserName = existing.organiser.name
-      formData.dateTimeRange = [existing.startTime, existing.endTime]
-      formData.location = existing.location
-      formData.capacity = existing.capacity
-      formData.posterUrl = existing.posterUrl
-      formData.description = existing.description
+  const queryId = typeof route.query.id === 'string' ? route.query.id : ''
+  if (queryId) {
+    const event = eventStore.events.find(item => item.id === queryId)
+    if (!event) {
+      ElMessage.error('This event could not be found.')
+      await router.replace('/organiser/dashboard')
+      return
     }
-  } else if (!categoryStore.activeCategories.some((category) => category.slug === formData.category)) {
+    if (event.organiserId && event.organiserId !== authStore.currentUser?.id) {
+      ElMessage.error('You can only edit your own events.')
+      await router.replace('/organiser/dashboard')
+      return
+    }
+    if (event.status === 'COMPLETED' || event.status === 'CLOSED') {
+      ElMessage.warning('Completed events can no longer be edited.')
+      await router.replace('/organiser/dashboard')
+      return
+    }
+    editingEventId.value = event.id
+    originalStatus.value = event.status
+    formData.title = event.title
+    formData.category = categorySlug(event.category)
+    formData.description = event.description
+    formData.date = extractDate(event.startTime)
+    formData.timeRange = [extractTime(event.startTime), extractTime(event.endTime)].filter(Boolean)
+    formData.location = event.location
+    formData.capacity = event.capacity
+    formData.posterUrl = event.posterUrl
+  } else {
     formData.category = categoryStore.activeCategories[0]?.slug ?? ''
   }
+  loadingPage.value = false
 })
 
-// Form Submission
-async function submitForm(formEl: FormInstance | undefined, isDraft: boolean = false) {
-  if (!formEl) return
-  await formEl.validate(async (valid) => {
-    if (valid) {
-      isSubmitting.value = true
-      const startStr = formData.dateTimeRange[0] ?? ''
-      const endStr = formData.dateTimeRange[1] ?? ''
+const previewPoster = computed(() => formData.posterUrl || DEFAULT_FALLBACK_POSTER)
+const previewCategory = computed(() => categoryStore.labelFor(formData.category || 'event'))
+const previewDate = computed(() => {
+  if (!formData.date) return 'Date and time'
+  const date = new Date(`${formData.date}T00:00:00`)
+  const dateText = Number.isNaN(date.getTime())
+    ? formData.date
+    : new Intl.DateTimeFormat('en-NZ', { weekday: 'short', day: 'numeric', month: 'long' }).format(date)
+  return `${dateText}${formData.timeRange[0] ? ` · ${formData.timeRange[0]}` : ''}`
+})
+function handlePreviewError(event: Event) { handlePosterError(event); formData.posterUrl = DEFAULT_FALLBACK_POSTER }
 
-      // Clean out separator '•' and extract valid YYYY-MM-DD and HH:mm
-      const cleanStart = (startStr || '').replace(/•/g, ' ').replace(/\s+/g, ' ').trim()
-      const cleanEnd = (endStr || '').replace(/•/g, ' ').replace(/\s+/g, ' ').trim()
+async function submitForm(type: 'draft' | 'review') {
+  if (!formRef.value || isSubmitting.value) return
+  if (type === 'review' && originalStatus.value === 'CANCELLED') {
+    ElMessage.info('Save the cancelled event as a draft before submitting it for review.')
+    return
+  }
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) {
+    ElMessage.error('Please check the highlighted fields.')
+    return
+  }
+  const [startTime, endTime] = formData.timeRange
+  if (!startTime || !endTime || endTime <= startTime) {
+    ElMessage.error('The end time must be later than the start time.')
+    return
+  }
 
-      const startParts = cleanStart.split(' ')
-      const endParts = cleanEnd.split(' ')
+  isSubmitting.value = true
+  submissionType.value = type
+  const payload = {
+    title: formData.title.trim(),
+    description: formData.description.trim(),
+    category: formData.category,
+    organiserName: authStore.currentUser?.name || 'Campus Organiser',
+    date: formData.date,
+    startTime,
+    endTime,
+    location: formData.location.trim(),
+    capacity: formData.capacity,
+    posterUrl: formData.posterUrl.trim(),
+    isDraft: type === 'draft',
+  }
 
-      const datePart = startParts.find((p) => p.includes('-')) || '2026-11-01'
-      const startTimePart = startParts.find((p) => p.includes(':')) || '14:00'
-      const endTimePart = endParts.find((p) => p.includes(':')) || '18:00'
-
-      const payload = {
-        title: formData.title,
-        description: formData.description,
-        category: formData.category,
-        organiserName: formData.organiserName,
-        date: datePart,
-        startTime: startTimePart,
-        endTime: endTimePart,
-        location: formData.location,
-        capacity: formData.capacity,
-        posterUrl: formData.posterUrl,
-        isDraft,
-      }
-
-      let res
-      if (isEditMode.value && editingEventId.value) {
-        res = await eventStore.updateEventInSupabase(editingEventId.value, payload)
-      } else {
-        res = await eventStore.createEventInSupabase(payload)
-      }
-
-      isSubmitting.value = false
-      if (res.success) {
-        if (isEditMode.value) {
-          ElMessage.success('Event updated successfully!')
-        } else if (isDraft) {
-          ElMessage.success('Event draft saved successfully!')
-        } else {
-          ElMessage.success('Event submitted for administrator review.')
-        }
-        router.push('/organiser/dashboard')
-      } else {
-        ElMessage.error(res.message || 'Failed to save event.')
-      }
-    } else {
-      ElMessage.error('Please check required fields in the form.')
-    }
-  })
+  try {
+    const result = isEditMode.value
+      ? await eventStore.updateEventInSupabase(editingEventId.value, payload)
+      : await eventStore.createEventInSupabase(payload)
+    if (!result.success) throw new Error(result.message || 'The event could not be saved.')
+    ElMessage.success(type === 'draft' ? 'Draft saved.' : 'Event submitted for administrator review.')
+    await router.push('/organiser/dashboard')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'The event could not be saved.')
+  } finally {
+    isSubmitting.value = false
+    submissionType.value = ''
+  }
 }
 
-function handleCancel() {
-  router.push('/organiser/dashboard')
-}
+function handleCancel() { void router.push('/organiser/dashboard') }
 </script>
 
-<style scoped>
-.create-event-page {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #ffffff;
-  padding: 20px 24px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
-
-.page-subtitle {
-  font-size: 0.9rem;
-  color: #64748b;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-/* Form Section Card */
-.form-card {
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.form-section {
-  padding: 8px 0;
-}
-
-.section-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.section-title .el-icon {
-  color: #6366f1;
-}
-
-.word-limit-hint {
-  width: 100%;
-  text-align: right;
-  font-size: 0.75rem;
-  color: #909399;
-  margin-top: 4px;
-}
-
-.word-limit-hint.over {
-  color: #f56c6c;
-  font-weight: 600;
-}
-
-.venue-presets {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.preset-label {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  font-weight: 600;
-}
-
-.preset-chip {
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.preset-chip:hover {
-  background-color: #6366f1;
-  color: #ffffff;
-  border-color: #6366f1;
-}
-
-.switch-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.switch-hint {
-  font-size: 0.75rem;
-  color: #94a3b8;
-}
-
-/* Poster Preset Gallery */
-.poster-preset-gallery {
-  margin-top: 12px;
-  background: #f8fafc;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #f1f5f9;
-}
-
-.preset-title {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #64748b;
-  margin-bottom: 10px;
-}
-
-.gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
-}
-
-.gallery-item {
-  position: relative;
-  height: 70px;
-  border-radius: 6px;
-  overflow: hidden;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.2s ease;
-}
-
-.gallery-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.gallery-label {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.65);
-  color: #ffffff;
-  font-size: 0.65rem;
-  text-align: center;
-  padding: 2px 0;
-}
-
-.gallery-item:hover {
-  transform: scale(1.05);
-}
-
-.gallery-item.active {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
-}
-
-/* Sticky Preview Column */
-.preview-sticky {
-  position: sticky;
-  top: 88px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.preview-header h3 {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-
-.preview-header h3 .el-icon {
-  color: #6366f1;
-}
-
-.preview-subtitle {
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
-.preview-tip-box {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  padding: 12px 14px;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  color: #166534;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-</style>
+<style scoped src="@/assets/styles/CreateEvent.css"></style>
