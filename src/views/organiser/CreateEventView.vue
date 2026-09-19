@@ -87,7 +87,23 @@
           <section class="form-section">
             <div class="section-heading">
               <span>03</span>
-              <div><h2>Event poster</h2><p>Use a public image URL or choose a simple preset.</p></div>
+              <div><h2>Event poster</h2><p>Upload a local image, enter a public URL, or choose a preset.</p></div>
+            </div>
+
+            <div class="poster-upload-row">
+              <el-upload
+                action="#"
+                :auto-upload="false"
+                :show-file-list="false"
+                accept="image/*"
+                :on-change="handleLocalImageUpload"
+              >
+                <el-button type="primary" plain :loading="isUploadingImage">
+                  <el-icon class="el-icon--left"><Upload /></el-icon>
+                  Upload Local Image
+                </el-button>
+              </el-upload>
+              <span class="upload-tip">Supports JPG, PNG, WEBP (up to 5MB)</span>
             </div>
 
             <el-form-item label="Poster URL" prop="posterUrl">
@@ -137,10 +153,11 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Link, Location } from '@element-plus/icons-vue'
+import { Link, Location, Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormInstance, FormRules, UploadFile } from 'element-plus'
 import OrganiserLayout from '@/layouts/OrganiserLayout.vue'
+import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useCategoryStore } from '@/stores/categoryStore'
 import { useEventStore } from '@/stores/eventStore'
@@ -157,11 +174,67 @@ const formRef = ref<FormInstance>()
 const loadingPage = ref(true)
 const loadError = ref('')
 const isSubmitting = ref(false)
+const isUploadingImage = ref(false)
 const submissionType = ref<'draft' | 'review' | ''>('')
 const editingEventId = ref('')
 const originalStatus = ref<EventStatus | null>(null)
 const isEditMode = computed(() => Boolean(editingEventId.value))
 const canSubmitForReview = computed(() => originalStatus.value !== 'CANCELLED')
+
+async function handleLocalImageUpload(file: UploadFile) {
+  const rawFile = file.raw
+  if (!rawFile) return
+
+  if (!rawFile.type.startsWith('image/')) {
+    ElMessage.error('Please select a valid image file.')
+    return
+  }
+  if (rawFile.size > 5 * 1024 * 1024) {
+    ElMessage.error('Image file size must be smaller than 5MB.')
+    return
+  }
+
+  isUploadingImage.value = true
+  try {
+    let uploadedUrl = ''
+
+    if (supabase && import.meta.env.VITE_SUPABASE_URL) {
+      const fileExt = rawFile.name.split('.').pop() || 'png'
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const filePath = `posters/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('event-posters')
+        .upload(filePath, rawFile, { cacheControl: '3600', upsert: true })
+
+      if (!uploadError) {
+        const { data: publicUrlData } = supabase.storage
+          .from('event-posters')
+          .getPublicUrl(filePath)
+        if (publicUrlData?.publicUrl) {
+          uploadedUrl = publicUrlData.publicUrl
+        }
+      }
+    }
+
+    if (!uploadedUrl) {
+      uploadedUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = (err) => reject(err)
+        reader.readAsDataURL(rawFile)
+      })
+    }
+
+    formData.posterUrl = uploadedUrl
+    ElMessage.success('Local image uploaded and preview updated!')
+  } catch (err) {
+    console.error('Local image upload error:', err)
+    ElMessage.error('Failed to process the selected image.')
+  } finally {
+    isUploadingImage.value = false
+  }
+}
 
 const venuePresets = ['Student Centre', 'Main Library', 'Recreation Centre', 'Online']
 const presetPosters = [
