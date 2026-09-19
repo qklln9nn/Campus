@@ -1,5 +1,4 @@
-.create-event-page {
-  display: flex; flex-direction: column; gap: 30px; color: #11213d; }
+.create-event-page { display: flex; flex-direction: column; gap: 30px; color: #11213d; }
 .page-heading { display: flex; justify-content: space-between; align-items: flex-end; }
 .back-link { margin: 0 0 28px; padding: 0; border: 0; background: transparent; color: #536478; font: inherit; font-size: 12px; cursor: pointer; }
 .back-link:hover { color: #1f57a8; }

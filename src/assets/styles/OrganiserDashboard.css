@@ -31,6 +31,7 @@
 .attendance-counts strong { color: #11213d; font-weight: 600; }
 .attendance-counts span { display: inline-block; margin-left: 5px; }
 .event-actions { display: flex; flex-direction: column; gap: 10px; }
+.action-note { padding: 9px 0; color: #8290a2; font-size: 10px; text-align: center; }
 .secondary-actions { display: flex; gap: 8px; }
 .secondary-actions > .el-button { flex: 1; margin: 0; }
 .pagination { padding: 20px; display: flex; justify-content: center; }

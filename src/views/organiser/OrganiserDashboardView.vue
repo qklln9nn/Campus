@@ -53,10 +53,12 @@
             </div>
             <div class="event-actions">
               <el-button v-if="event.status === 'DRAFT'" type="primary" :loading="busyId === event.id" :disabled="busyId !== ''" @click="submitDraft(event)">Submit for Review</el-button>
-              <el-button v-else type="primary" plain :disabled="eventStore.attendeesLoading" @click="openAttendees(event)">View Attendees</el-button>
+              <el-button v-else-if="canViewAttendees(event)" type="primary" plain :disabled="eventStore.attendeesLoading" @click="openAttendees(event)">View Attendees</el-button>
+              <span v-else class="action-note">No attendee list for this status</span>
               <div class="secondary-actions">
-                <el-button :disabled="busyId !== ''" @click="editEvent(event.id)">Edit</el-button>
-                <el-button type="danger" text :disabled="busyId !== ''" @click="deleteEvent(event)">Delete</el-button>
+                <el-button v-if="canEdit(event)" :disabled="busyId !== ''" @click="editEvent(event.id)">Edit</el-button>
+                <el-button v-if="canCancel(event)" type="danger" plain :loading="busyId === event.id" :disabled="busyId !== ''" @click="cancelEvent(event)">Cancel</el-button>
+                <el-button v-if="canDelete(event)" type="danger" text :disabled="busyId !== ''" @click="deleteEvent(event)">Delete</el-button>
               </div>
             </div>
           </article>
@@ -105,6 +107,7 @@ import OrganiserLayout from '@/layouts/OrganiserLayout.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useEventStore } from '@/stores/eventStore'
 import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
+import { cancelOwnedEvent } from '@/lib/organiserEvents'
 import type { EventItem, EventStatus } from '@/types/event'
 
 const router = useRouter()
@@ -162,6 +165,18 @@ watch(() => filteredEvents.value.length, count => {
 })
 function resetFilters() { search.value = ''; statusFilter.value = 'all' }
 function editEvent(id: string) { void router.push({ path: '/create', query: { id } }) }
+function canDelete(event: EventItem) {
+  return ['DRAFT', 'REJECTED', 'CANCELLED'].includes(event.status)
+}
+function canEdit(event: EventItem) {
+  return event.status !== 'COMPLETED' && event.status !== 'CLOSED'
+}
+function canCancel(event: EventItem) {
+  return ['OPEN', 'FILLING_FAST', 'WAITLIST', 'PENDING'].includes(event.status)
+}
+function canViewAttendees(event: EventItem) {
+  return ['OPEN', 'FILLING_FAST', 'WAITLIST', 'COMPLETED', 'CLOSED'].includes(event.status)
+}
 
 async function loadEvents() {
   if (loading.value) return
@@ -197,6 +212,10 @@ async function submitDraft(event: EventItem) {
 }
 async function deleteEvent(event: EventItem) {
   if (busyId.value) return
+  if (!canDelete(event)) {
+    ElMessage.warning('Only draft, rejected, or cancelled events can be permanently deleted.')
+    return
+  }
   if (!await confirmAction(`Delete "${event.title}"? This cannot be undone.`, 'Delete event', 'Delete')) return
   busyId.value = event.id
   // The existing store removes locally before saving. Keep a snapshot for failure recovery.
@@ -208,6 +227,23 @@ async function deleteEvent(event: EventItem) {
   } catch (error) {
     eventStore.events = previousEvents
     ElMessage.error(error instanceof Error ? error.message : 'Deletion failed.')
+  } finally { busyId.value = '' }
+}
+async function cancelEvent(event: EventItem) {
+  if (busyId.value || !canCancel(event)) return
+  const confirmed = await confirmAction(
+    `Cancel "${event.title}"? The event will stop accepting registrations, but this action does not send students a notification.`,
+    'Cancel event',
+    'Cancel event',
+  )
+  if (!confirmed) return
+  busyId.value = event.id
+  try {
+    await cancelOwnedEvent(event.id)
+    await eventStore.fetchEventsFromSupabase()
+    ElMessage.success('Event cancelled. You may now keep or permanently delete it.')
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : 'The event could not be cancelled.')
   } finally { busyId.value = '' }
 }
 
