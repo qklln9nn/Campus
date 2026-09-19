@@ -109,7 +109,7 @@
             <el-button :disabled="isSubmitting" @click="handleCancel">Cancel</el-button>
             <el-button :loading="isSubmitting && submissionType === 'draft'" :disabled="isSubmitting"
               @click="submitForm('draft')">Save Draft</el-button>
-            <el-button type="primary" :loading="isSubmitting && submissionType === 'review'" :disabled="isSubmitting"
+            <el-button v-if="canSubmitForReview" type="primary" :loading="isSubmitting && submissionType === 'review'" :disabled="isSubmitting"
               @click="submitForm('review')">
               {{ isEditMode ? 'Submit Changes' : 'Submit for Review' }}
             </el-button>
@@ -146,6 +146,7 @@ import { useCategoryStore } from '@/stores/categoryStore'
 import { useEventStore } from '@/stores/eventStore'
 import { categorySlug } from '@/lib/category'
 import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
+import type { EventStatus } from '@/types/event'
 
 const route = useRoute()
 const router = useRouter()
@@ -158,7 +159,9 @@ const loadError = ref('')
 const isSubmitting = ref(false)
 const submissionType = ref<'draft' | 'review' | ''>('')
 const editingEventId = ref('')
+const originalStatus = ref<EventStatus | null>(null)
 const isEditMode = computed(() => Boolean(editingEventId.value))
+const canSubmitForReview = computed(() => originalStatus.value !== 'CANCELLED')
 
 const venuePresets = ['Student Centre', 'Main Library', 'Recreation Centre', 'Online']
 const presetPosters = [
@@ -225,7 +228,13 @@ onMounted(async () => {
       await router.replace('/organiser/dashboard')
       return
     }
+    if (event.status === 'COMPLETED' || event.status === 'CLOSED') {
+      ElMessage.warning('Completed events can no longer be edited.')
+      await router.replace('/organiser/dashboard')
+      return
+    }
     editingEventId.value = event.id
+    originalStatus.value = event.status
     formData.title = event.title
     formData.category = categorySlug(event.category)
     formData.description = event.description
@@ -254,6 +263,10 @@ function handlePreviewError(event: Event) { handlePosterError(event); formData.p
 
 async function submitForm(type: 'draft' | 'review') {
   if (!formRef.value || isSubmitting.value) return
+  if (type === 'review' && originalStatus.value === 'CANCELLED') {
+    ElMessage.info('Save the cancelled event as a draft before submitting it for review.')
+    return
+  }
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) {
     ElMessage.error('Please check the highlighted fields.')
