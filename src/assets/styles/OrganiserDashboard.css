@@ -1,0 +1,53 @@
+.organiser-dashboard { display: flex; flex-direction: column; gap: 28px; }
+.page-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.eyebrow { color: #1f57a8 !important; font-size: 10px !important; letter-spacing: 1.7px; font-weight: 650; margin-bottom: 10px !important; }
+.page-heading h1 { margin: 0 0 10px; font-size: clamp(28px, 4vw, 40px); font-weight: 650; letter-spacing: -1px; }
+.page-heading p { margin: 0; color: #64748b; font-size: 13px; line-height: 1.7; }
+.page-heading > .el-button { flex-shrink: 0; border-radius: 6px; }
+.overview { display: flex; margin: 0; padding: 24px 0; border-block: 1px solid #cdd6e2; gap: 48px; }
+.overview div { display: flex; flex-direction: column-reverse; gap: 5px; }
+.overview dt { color: #627187; font-size: 12px; }
+.overview dd { margin: 0; font-size: 28px; font-weight: 600; line-height: 1.2; }
+.events-panel { background: #fff; border: 1px solid #d4dce6; border-radius: 12px; overflow: hidden; }
+.list-tools { padding: 22px 24px; border-bottom: 1px solid #e3e8ee; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; }
+.status-filters { display: flex; flex-wrap: wrap; gap: 5px; }
+.status-filters button { display: flex; align-items: center; gap: 7px; background: transparent; border: 0; border-radius: 5px; padding: 9px 10px; color: #627187; font: inherit; font-size: 12px; cursor: pointer; }
+.status-filters button.selected { background: #e8eef7; color: #1f57a8; }
+.status-filters button span { font-size: 10px; opacity: .8; }
+.status-filters button:focus-visible { outline: 2px solid #1f57a8; outline-offset: 2px; }
+.search-tools { display: flex; gap: 10px; width: 300px; max-width: 100%; }
+.list-loading { padding: 24px; box-sizing: border-box; }
+.event-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 175px; align-items: center; gap: 24px; padding: 24px; border-bottom: 1px solid #e8edf3; }
+.event-row:last-child { border-bottom: 0; }
+.event-poster { display: block; width: 110px; height: 140px; object-fit: contain; background: #f0f3f7; border-radius: 6px; }
+.event-labels { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 10px; color: #64748b; }
+.status-label { padding: 4px 8px; background: #eef2f6; color: #536478; border-radius: 4px; }
+.status-label[data-status='OPEN'], .status-label[data-status='FILLING_FAST'] { background: #edf4ef; color: #326146; }
+.status-label[data-status='PENDING'], .status-label[data-status='WAITLIST'] { background: #f8f0de; color: #88651c; }
+.status-label[data-status='REJECTED'], .status-label[data-status='CANCELLED'] { background: #faecea; color: #a34437; }
+.event-info h2 { margin: 9px 0; color: #11213d; font-size: 18px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.event-info p { margin: 4px 0; color: #627187; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.attendance-counts { margin-top: 13px; font-size: 11px; color: #627187; }
+.attendance-counts strong { color: #11213d; font-weight: 600; }
+.attendance-counts span { display: inline-block; margin-left: 5px; }
+.event-actions { display: flex; flex-direction: column; gap: 10px; }
+.secondary-actions { display: flex; gap: 8px; }
+.secondary-actions > .el-button { flex: 1; margin: 0; }
+.pagination { padding: 20px; display: flex; justify-content: center; }
+.attendee-panel { display: flex; flex-direction: column; align-items: stretch; gap: 16px; color: #11213d; }
+.attendee-panel h2 { font-size: 21px; line-height: 1.4; margin: 0; overflow-wrap: anywhere; }
+.attendee-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.attendee-toolbar p { font-size: 13px; color: #627187; }
+@media (max-width: 680px) {
+  .page-heading { align-items: flex-start; flex-direction: column; gap: 18px; }
+  .overview { gap: 20px; justify-content: space-between; }
+  .overview dt { font-size: 10px; line-height: 1.5; }
+  .overview dd { font-size: 24px; }
+  .list-tools { padding: 16px; gap: 14px; }
+  .search-tools { width: 100%; }
+  .event-row { grid-template-columns: 78px minmax(0, 1fr); gap: 16px; padding: 20px 16px; }
+  .event-poster { width: 78px; height: 110px; align-self: start; }
+  .event-info h2 { font-size: 16px; }
+  .event-actions { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
+  .event-actions > .el-button, .secondary-actions { flex: 1; }
+}
