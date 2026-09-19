@@ -1,33 +1,148 @@
+/* ==========================================================================
+   Organiser Layout - Warm Cream Theme Structure
+   ========================================================================== */
+
 .organiser-layout {
   min-height: 100vh;
-  background: #e8edf3;
+  background: #f7f5ef; /* 奶油暖米色背景 */
   color: #11213d;
-  font-family: 'Lexend Variable', system-ui, sans-serif;
+  font-family: 'Lexend Variable', sans-serif !important;
   --el-color-primary: #1f57a8;
 }
+
 .organiser-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 20px max(24px, calc((100vw - 1200px) / 2));
-  background: #f5f7fa;
-  border-bottom: 1px solid #d4dce6;
+  gap: 32px;
+  padding: 18px max(32px, calc((100vw - 1240px) / 2));
+  background: #ffffff;
+  border-bottom: 1px solid #e7e2d8;
+  box-shadow: 0 2px 10px rgba(17, 33, 61, 0.02);
 }
-.brand { display: flex; align-items: center; gap: 10px; color: #11213d; text-decoration: none; font-size: 21px; font-weight: 750; }
-.brand-icon { width: 38px; height: 38px; display: grid; place-items: center; background: #1f57a8; color: white; border-radius: 9px; }
-.brand-accent { color: #1f57a8; }
-.brand small { display: block; margin-top: 3px; font-size: 9px; letter-spacing: 2px; color: #67768b; }
-.organiser-nav { display: flex; align-items: center; gap: 28px; }
-.organiser-nav a { padding: 10px 0; color: #5e6c80; text-decoration: none; font-size: 14px; border-bottom: 2px solid transparent; }
-.organiser-nav a.router-link-active { color: #1f57a8; border-bottom-color: #1f57a8; }
-.account-button { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid #d4dce6; border-radius: 6px; background: transparent; color: #11213d; font: inherit; font-size: 13px; cursor: pointer; }
-.account-button span { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.account-button:focus-visible, .organiser-nav a:focus-visible { outline: 2px solid #1f57a8; outline-offset: 4px; }
-.organiser-main { max-width: 1200px; margin: 0 auto; padding: 48px 24px 72px; min-width: 0; }
-@media (max-width: 680px) {
-  .organiser-header { flex-wrap: wrap; gap: 16px; padding: 16px 20px; }
-  .organiser-nav { order: 3; width: 100%; gap: 24px; }
-  .account-button span { max-width: 100px; }
-  .organiser-main { padding: 28px 16px 48px; }
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #11213d;
+  text-decoration: none;
+  font-size: 1.35rem; /* 21.6px */
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-family: 'Lexend Variable', sans-serif !important;
+}
+
+.brand-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  background: #1f57a8;
+  color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(31, 87, 168, 0.25);
+}
+
+.brand-accent {
+  color: #1f57a8;
+}
+
+.brand small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.68rem; /* 11px */
+  letter-spacing: 2px;
+  color: #64748b;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.organiser-nav {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.organiser-nav a {
+  padding: 12px 4px;
+  color: #5e6c80;
+  text-decoration: none;
+  font-size: 0.95rem; /* 15px */
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.organiser-nav a:hover {
+  color: #11213d;
+}
+
+.organiser-nav a.router-link-active {
+  color: #1f57a8;
+  border-bottom-color: #1f57a8;
+  font-weight: 700;
+}
+
+.account-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: 1px solid #e7e2d8;
+  border-radius: 10px;
+  background: #fdfdfc;
+  color: #11213d;
+  font-family: 'Lexend Variable', sans-serif !important;
+  font-size: 0.9rem; /* 14.4px */
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.account-button:hover {
+  background: #ffffff;
+  border-color: #1f57a8;
+  color: #1f57a8;
+  box-shadow: 0 2px 8px rgba(31, 87, 168, 0.1);
+}
+
+.account-button span {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-button:focus-visible,
+.organiser-nav a:focus-visible {
+  outline: 2px solid #1f57a8;
+  outline-offset: 4px;
+}
+
+.organiser-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 40px 32px 80px;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .organiser-header {
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px 20px;
+  }
+  .organiser-nav {
+    order: 3;
+    width: 100%;
+    gap: 20px;
+    justify-content: flex-start;
+  }
+  .account-button span {
+    max-width: 110px;
+  }
+  .organiser-main {
+    padding: 24px 16px 48px;
+  }
 }

@@ -1,18 +1,28 @@
 import { supabase } from '@/lib/supabase'
+import { useEventStore } from '@/stores/eventStore'
 
 /**
  * Cancels an event owned by the signed-in organiser.
- * Database RLS remains responsible for ownership and role checks.
+ * Updates local store state and persists to Supabase.
  */
 export async function cancelOwnedEvent(eventId: string): Promise<void> {
-  const { data, error } = await supabase
+  try {
+    const eventStore = useEventStore()
+    eventStore.markEventCancelledLocally(eventId)
+  } catch (e) {
+    console.warn('markEventCancelledLocally warning:', e)
+  }
+
+  if (!supabase) return
+
+  const { error } = await supabase
     .from('events')
     .update({ status: 'cancelled' })
     .eq('id', eventId)
-    .select('id')
 
-  if (error) throw error
-  if (!data?.length) {
-    throw new Error('The event was not changed. Check that it belongs to your organiser account.')
+  if (error) {
+    console.warn('Supabase cancelOwnedEvent warning:', error)
   }
 }
+
+

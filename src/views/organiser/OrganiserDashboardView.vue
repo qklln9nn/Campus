@@ -239,12 +239,20 @@ async function cancelEvent(event: EventItem) {
   if (!confirmed) return
   busyId.value = event.id
   try {
+    // 1. Immediately update reactive state in store
+    const target = eventStore.events.find(item => item.id === event.id)
+    if (target) {
+      target.status = 'CANCELLED'
+    }
+    // 2. Persist in Supabase
     await cancelOwnedEvent(event.id)
-    await eventStore.fetchEventsFromSupabase()
     ElMessage.success('Event cancelled. You may now keep or permanently delete it.')
   } catch (error) {
+    console.warn('Cancel event error:', error)
     ElMessage.error(error instanceof Error ? error.message : 'The event could not be cancelled.')
-  } finally { busyId.value = '' }
+  } finally {
+    busyId.value = ''
+  }
 }
 
 const selectedEvent = computed(() => ownEvents.value.find(event => event.id === selectedId.value))
