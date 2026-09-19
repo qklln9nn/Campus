@@ -1,0 +1,33 @@
+.organiser-layout {
+  min-height: 100vh;
+  background: #e8edf3;
+  color: #11213d;
+  font-family: 'Lexend Variable', system-ui, sans-serif;
+  --el-color-primary: #1f57a8;
+}
+.organiser-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px max(24px, calc((100vw - 1200px) / 2));
+  background: #f5f7fa;
+  border-bottom: 1px solid #d4dce6;
+}
+.brand { display: flex; align-items: center; gap: 10px; color: #11213d; text-decoration: none; font-size: 21px; font-weight: 750; }
+.brand-icon { width: 38px; height: 38px; display: grid; place-items: center; background: #1f57a8; color: white; border-radius: 9px; }
+.brand-accent { color: #1f57a8; }
+.brand small { display: block; margin-top: 3px; font-size: 9px; letter-spacing: 2px; color: #67768b; }
+.organiser-nav { display: flex; align-items: center; gap: 28px; }
+.organiser-nav a { padding: 10px 0; color: #5e6c80; text-decoration: none; font-size: 14px; border-bottom: 2px solid transparent; }
+.organiser-nav a.router-link-active { color: #1f57a8; border-bottom-color: #1f57a8; }
+.account-button { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid #d4dce6; border-radius: 6px; background: transparent; color: #11213d; font: inherit; font-size: 13px; cursor: pointer; }
+.account-button span { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-button:focus-visible, .organiser-nav a:focus-visible { outline: 2px solid #1f57a8; outline-offset: 4px; }
+.organiser-main { max-width: 1200px; margin: 0 auto; padding: 48px 24px 72px; min-width: 0; }
+@media (max-width: 680px) {
+  .organiser-header { flex-wrap: wrap; gap: 16px; padding: 16px 20px; }
+  .organiser-nav { order: 3; width: 100%; gap: 24px; }
+  .account-button span { max-width: 100px; }
+  .organiser-main { padding: 28px 16px 48px; }
+}
