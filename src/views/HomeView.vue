@@ -153,7 +153,11 @@
     >
       <div v-if="selectedEvent" class="modal-event-summary">
         <div class="modal-poster">
-          <img :src="selectedEvent.posterUrl" :alt="selectedEvent.title" />
+          <img
+            :src="selectedEvent.posterUrl || DEFAULT_FALLBACK_POSTER"
+            :alt="selectedEvent.title"
+            @error="onRegistrationPosterError"
+          />
         </div>
         <div class="modal-info">
           <el-tag size="small" type="primary" class="mb-1">{{ selectedEvent.category }}</el-tag>
@@ -314,6 +318,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useCategoryStore } from '@/stores/categoryStore'
 import { categorySlug } from '@/lib/category'
 import type { EventItem } from '@/types/event'
+import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
 
 onMounted(() => {
   eventStore.searchQuery = ''
@@ -357,6 +362,10 @@ const homeCategoryTabs = computed(() => [
   { slug: 'All', name: 'All' },
   ...categoryStore.activeCategories,
 ])
+
+function onRegistrationPosterError(event: Event) {
+  handlePosterError(event, selectedEvent.value?.category)
+}
 const featuredEvents = computed(() => {
   const filteredEvents =
     selectedHomeCategory.value === 'All' ? eventStore.events : eventStore.events.filter(

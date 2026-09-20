@@ -1,3 +1,5 @@
+//the interface of Event
+
 export type CategoryType = string;
 
 export type EventStatus =
