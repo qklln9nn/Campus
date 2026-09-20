@@ -227,6 +227,7 @@ async function handleLocalImageUpload(file: UploadFile) {
     }
 
     formData.posterUrl = uploadedUrl
+    formRef.value?.validateField('posterUrl')
     ElMessage.success('Local image uploaded and preview updated!')
   } catch (err) {
     console.error('Local image upload error:', err)
@@ -269,8 +270,24 @@ const formRules: FormRules = {
   location: [{ required: true, message: 'Enter an event location.', trigger: 'blur' }],
   capacity: [{ required: true, type: 'number', message: 'Enter the event capacity.', trigger: 'change' }],
   posterUrl: [
-    { required: true, message: 'Enter a poster URL or choose a preset.', trigger: 'blur' },
-    { type: 'url', message: 'Enter a complete URL beginning with http:// or https://.', trigger: 'blur' },
+    {
+      validator: (_rule, value: string, callback) => {
+        if (!value || !value.trim()) {
+          return callback(new Error('Enter a poster URL, upload a local image, or choose a preset.'))
+        }
+        const str = value.trim()
+        if (
+          str.startsWith('http://') ||
+          str.startsWith('https://') ||
+          str.startsWith('data:image/') ||
+          str.startsWith('/')
+        ) {
+          return callback()
+        }
+        return callback(new Error('Please enter a valid HTTP/HTTPS URL or upload a local image.'))
+      },
+      trigger: ['blur', 'change'],
+    },
   ],
 }
 
@@ -342,7 +359,8 @@ async function submitForm(type: 'draft' | 'review') {
   }
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) {
-    ElMessage.error('Please check the highlighted fields.')
+    ElMessage.closeAll()
+    ElMessage.error({ message: 'Please check the highlighted fields.', grouping: true })
     return
   }
   const [startTime, endTime] = formData.timeRange
