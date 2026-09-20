@@ -1,0 +1,267 @@
+.admin-layout {
+  min-height: 100vh;
+  background: #f7f5ef;
+  color: #11213d;
+  font-family: 'Lexend Variable', system-ui, sans-serif;
+}
+
+/* Header */
+.admin-header {
+  position: sticky;
+  z-index: 100;
+  min-height: 60px;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  background: #f7f5ef;
+  border-bottom: 1px solid #dedbd3;
+}
+
+.admin-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.admin-brand-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #b91c1c;
+  color: #ffffff;
+  font-size: 1.3rem;
+}
+
+.admin-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.admin-brand-text strong {
+  font-size: 1.2rem;
+  letter-spacing: -0.04em;
+}
+
+.admin-brand-text strong span {
+  color: #b91c1c;
+}
+
+.admin-brand-text small {
+  color: #687487;
+  font-size: 0.65rem;
+}
+
+/* Search */
+.admin-search {
+  flex: 1;
+  max-width: 460px;
+  min-width: 0;
+}
+
+.admin-search :deep(.el-input__wrapper) {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #dedbd3 inset;
+  transition: all 0.2s;
+}
+
+.admin-search :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #b91c1c inset;
+}
+
+/* Account */
+.admin-account {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #11213d;
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-account :deep(.el-avatar) {
+  flex-shrink: 0;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.admin-account-name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+/* Sidebar and page */
+.admin-body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: start;
+}
+
+.admin-sidebar {
+  padding: 32px 18px;
+}
+
+.admin-nav-label {
+  margin: 0 12px 18px;
+  color: #7b8490;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.admin-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-nav-item {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #526074;
+  font: inherit;
+  font-size: 0.75rem;
+  text-decoration: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-nav-item > .el-icon {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.admin-nav-item:hover {
+  background: #eeece6;
+  color: #11213d;
+}
+
+.admin-nav-item.is-active {
+  background: #fef2f2;
+  color: #b91c1c;
+  font-weight: 650;
+}
+
+.admin-nav-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-nav-count {
+  color: inherit;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  background: #b91c1c;
+  color: white;
+  padding: 2px 5px;
+  border-radius: 10px;
+}
+
+.admin-home-link {
+  display: inline-block;
+  margin: 28px 12px 0;
+  color: #687487;
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.admin-home-link:hover {
+  color: #b91c1c;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.admin-content {
+  min-width: 0;
+  padding: 32px;
+}
+
+/* Keyboard focus */
+.admin-nav-item:focus-visible,
+.admin-account:focus-visible,
+.admin-brand:focus-visible,
+.admin-home-link:focus-visible {
+  outline: 2px solid #b91c1c;
+  outline-offset: 3px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .admin-header {
+    padding: 14px 20px;
+    gap: 18px;
+  }
+  .admin-body {
+    grid-template-columns: 1fr;
+  }
+  .admin-sidebar {
+    min-width: 0;
+    padding: 14px 20px;
+    border-bottom: 1px solid #dedbd3;
+  }
+  .admin-nav-label,
+  .admin-home-link {
+    display: none;
+  }
+  .admin-navigation {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 8px;
+  }
+  .admin-nav-item {
+    width: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-header {
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  .admin-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .admin-account-name {
+    display: none;
+  }
+  .admin-sidebar {
+    padding: 10px 16px;
+  }
+  .admin-nav-item {
+    min-height: 42px;
+    font-size: 0.76rem;
+  }
+}
