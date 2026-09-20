@@ -109,24 +109,34 @@ export const useModerationStore = defineStore('moderation', () => {
 
       if (error) throw error
       const rows = (data ?? []) as RawModerationEvent[]
-      events.value = rows.map((row) => {
-        const organiser = firstRelation(row.organiser)
-        return {
-          id: row.id,
-          title: row.title,
-          description: row.description ?? '',
-          category: row.category,
-          poster: row.image_url ?? '',
-          organiser: String(organiser.full_name ?? 'Unknown organiser'),
-          contactEmail: String(organiser.email ?? ''),
-          location: row.location ?? row.online_link ?? 'Online',
-          date: `${row.event_date} ${String(row.start_time).slice(0, 5)}`,
-          submittedDate: new Date(row.created_at).toLocaleDateString(),
-          status: row.status as EventModerationStatus,
-          capacity: row.capacity,
-          rejectionReason: row.rejection_reason ?? '',
-        }
-      })
+
+      const deletedEventIds = new Set<string>(JSON.parse(localStorage.getItem('campus_deleted_events') || '[]'))
+      const cancelledEventIds = new Set<string>(JSON.parse(localStorage.getItem('campus_cancelled_events') || '[]'))
+
+      events.value = rows
+        .filter((row) => !deletedEventIds.has(row.id))
+        .map((row) => {
+          const organiser = firstRelation(row.organiser)
+          let status = row.status as EventModerationStatus
+          if (cancelledEventIds.has(row.id) || row.status?.toLowerCase() === 'cancelled') {
+            status = 'cancelled'
+          }
+          return {
+            id: row.id,
+            title: row.title,
+            description: row.description ?? '',
+            category: row.category,
+            poster: row.image_url ?? '',
+            organiser: String(organiser.full_name ?? 'Unknown organiser'),
+            contactEmail: String(organiser.email ?? ''),
+            location: row.location ?? row.online_link ?? 'Online',
+            date: `${row.event_date} ${String(row.start_time).slice(0, 5)}`,
+            submittedDate: new Date(row.created_at).toLocaleDateString(),
+            status,
+            capacity: row.capacity,
+            rejectionReason: row.rejection_reason ?? '',
+          }
+        })
     } catch (error) {
       errorMessage.value = messageFrom(error, 'Unable to load events for moderation.')
       throw error
