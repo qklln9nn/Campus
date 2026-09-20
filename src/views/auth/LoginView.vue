@@ -1,6 +1,5 @@
 <template>
   <div class="auth-page">
-    <!-- Top Brand Nav Header -->
     <header class="auth-header">
       <router-link to="/" class="brand-link">
         <div class="brand-icon">
@@ -12,8 +11,6 @@
         <el-icon><Back /></el-icon> Return to Home
       </router-link>
     </header>
-
-    <!-- Main Form Container -->
     <main class="auth-main">
       <div class="auth-card-wrapper">
         <div class="auth-card-header">
@@ -31,7 +28,6 @@
         />
 
         <el-tabs v-model="activeTab" class="auth-tabs" stretch>
-          <!-- Sign In Tab -->
           <el-tab-pane label="Sign In" name="signin">
             <el-form
               ref="loginFormRef"
@@ -59,10 +55,6 @@
                 />
               </el-form-item>
 
-              <div class="form-options">
-                <span></span>
-                <a href="#" class="forgot-link" @click.prevent="handleForgotPassword">Forgot password?</a>
-              </div>
 
               <el-button
                 type="primary"
@@ -75,8 +67,6 @@
               </el-button>
             </el-form>
           </el-tab-pane>
-
-          <!-- Register Tab -->
           <el-tab-pane label="Register Account" name="register">
             <el-form
               ref="registerFormRef"
@@ -276,11 +266,14 @@ function safeRedirectPath(): string | null {
   return redirect
 }
 
+//function for login
 async function handleLogin() {
+  //trigger the front-end form rule validation
   if (!(await validateForm(loginFormRef.value))) return
 
   isSubmitting.value = true
   try {
+    //login function in authstore (Pinia)
     const profile = await authStore.login(loginForm.email, loginForm.password)
     ElMessage.success(`Welcome back, ${profile.name}.`)
     await router.replace(safeRedirectPath() ?? getRoleHomePath(profile.role))
@@ -291,17 +284,21 @@ async function handleLogin() {
   }
 }
 
+//new auth register function
 async function handleRegister() {
+  //check if the user agrees to the terms and conditions
   if (!registerForm.agreeTerms) {
     ElMessage.warning('Please agree to the Campus Terms & Privacy Policy before registering.')
     return
   }
+  //trigger the front-end form rule validation
   if (!(await validateForm(registerFormRef.value))) return
 
   isSubmitting.value = true
   registrationNoticeType.value = 'success'
   registrationNotice.value = ''
   try {
+    //register function in authstore (Pinia)
     const result = await authStore.register({
       name: registerForm.name,
       email: registerForm.email,
@@ -310,6 +307,8 @@ async function handleRegister() {
       grade: registerForm.grade,
     })
 
+    //if the user needs to confirm their email to login
+    //(haven't implemented email confirmation function in the backend yet)
     if (result.requiresEmailConfirmation) {
       registrationNotice.value =
         'Account created. Check your campus email to confirm it before signing in.'
@@ -324,24 +323,6 @@ async function handleRegister() {
     await router.replace(getRoleHomePath(result.profile?.role))
   } catch (error) {
     ElMessage.error(errorText(error, 'Unable to create your account.'))
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-async function handleForgotPassword() {
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginForm.email.trim())
-  if (!emailValid) {
-    ElMessage.warning('Enter your campus email first, then request a password reset.')
-    return
-  }
-
-  isSubmitting.value = true
-  try {
-    await authStore.requestPasswordReset(loginForm.email)
-    ElMessage.success('Password reset instructions have been sent if that account exists.')
-  } catch (error) {
-    ElMessage.error(errorText(error, 'Unable to send the password reset email.'))
   } finally {
     isSubmitting.value = false
   }

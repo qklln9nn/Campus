@@ -113,7 +113,6 @@ import {
   ArrowDown,
   UserFilled,
   SwitchButton,
-  DataAnalysis,
   Tickets,
   Warning,
   Tools

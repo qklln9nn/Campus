@@ -1,9 +1,6 @@
 <template>
   <StudentLayout>
     <div class="dashboard-page">
-
-      <!-- 1. 顶部 Header 与 筛选集成区（替代原本死板的 Toolbar 盒子） -->
-      <!-- 2. Page Header 左右分栏排版 -->
 <header class="page-header">
   <div>
     <span class="page-eyebrow">WHAT'S ON?</span>
@@ -60,7 +57,6 @@
   </button>
 </section>
 
-      <!-- 3. 卡片网格展示区 -->
       <main class="content-body">
         <div v-if="displayedEvents.length > 0" class="events-grid-container">
           <el-row :gutter="28">
@@ -91,7 +87,6 @@
         </div>
       </main>
 
-      <!-- 4. 底栏分页 -->
       <footer v-if="displayedEvents.length > 0" class="pagination-container">
         <el-pagination
           v-model:current-page="currentPage"
@@ -103,7 +98,6 @@
         />
       </footer>
 
-      <!-- 5. 交互弹窗：杂志交织风格重构 -->
       <el-dialog
         v-model="showRegistrationModal"
         title="Confirm Event Registration"
@@ -114,7 +108,11 @@
       >
         <div v-if="selectedEvent" class="modal-event-summary">
           <div class="modal-hero-cover">
-            <img :src="selectedEvent.posterUrl" :alt="selectedEvent.title" />
+            <img
+              :src="selectedEvent.posterUrl || DEFAULT_FALLBACK_POSTER"
+              :alt="selectedEvent.title"
+              @error="onRegistrationPosterError"
+            />
             <span class="category-badge">{{ selectedEvent.category }}</span>
           </div>
 
@@ -146,7 +144,7 @@
               </div>
             </div>
 
-            <!-- 状态提示 -->
+
             <div v-if="selectedEvent.registeredCount >= selectedEvent.capacity" class="notice-block">
               <el-alert
                 title="Seats Filled: Joining Waitlist Queue"
@@ -194,6 +192,7 @@ import { useCategoryStore } from '@/stores/categoryStore'
 import type { EventItem } from '@/types/event'
 import { Refresh, Calendar, Location, User } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
 
 const eventStore = useEventStore()
 const categoryStore = useCategoryStore()
@@ -258,6 +257,10 @@ function resetFilters() {
 function openRegistrationDialog(event: EventItem) {
   selectedEvent.value = event
   showRegistrationModal.value = true
+}
+
+function onRegistrationPosterError(event: Event) {
+  handlePosterError(event, selectedEvent.value?.category)
 }
 
 async function handleToggleBookmark(eventId: string) {
