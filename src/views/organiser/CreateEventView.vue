@@ -233,7 +233,6 @@ async function handleLocalImageUpload(file: UploadFile) {
 
     // 4. 更新表达数据并手动触发校验
     formData.posterUrl = uploadedUrl
-
     // 如果是 Base64 格式，清空 URL 格式校验报错
     if (uploadedUrl.startsWith('data:')) {
       formRef.value?.clearValidate('posterUrl')
@@ -370,7 +369,8 @@ async function submitForm(type: 'draft' | 'review') {
   }
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) {
-    ElMessage.error('Please check the highlighted fields.')
+    ElMessage.closeAll()
+    ElMessage.error({ message: 'Please check the highlighted fields.', grouping: true })
     return
   }
   const [startTime, endTime] = formData.timeRange

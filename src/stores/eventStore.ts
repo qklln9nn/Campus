@@ -361,6 +361,10 @@ export const useEventStore = defineStore('event', () => {
     const validDate = eventPayload.date && eventPayload.date.length >= 8 ? eventPayload.date : '2026-11-01'
     const generatedId = generateValidUUID()
 
+    const safeImageUrl = eventPayload.posterUrl.startsWith('data:image/')
+      ? 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=900&q=80'
+      : eventPayload.posterUrl.slice(0, 500)
+
     try {
       const { data: dbData, error: dbErr } = await supabase
         .from('events')
@@ -374,7 +378,7 @@ export const useEventStore = defineStore('event', () => {
           end_time: eTime,
           location: eventPayload.location || 'Campus Center Hall',
           capacity: Number(eventPayload.capacity) || 50,
-          image_url: eventPayload.posterUrl,
+          image_url: safeImageUrl,
           status: eventStatus,
           organiser_id: organiserId,
         })
@@ -463,6 +467,10 @@ export const useEventStore = defineStore('event', () => {
       }
     }
 
+    const safeImageUrl = eventPayload.posterUrl.startsWith('data:image/')
+      ? 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=900&q=80'
+      : eventPayload.posterUrl.slice(0, 500)
+
     if (supabase && import.meta.env.VITE_SUPABASE_URL) {
       try {
         const { error } = await supabase
@@ -476,7 +484,7 @@ export const useEventStore = defineStore('event', () => {
             end_time: eTime,
             location: eventPayload.location,
             capacity: Number(eventPayload.capacity) || 50,
-            image_url: eventPayload.posterUrl,
+            image_url: safeImageUrl,
             status: eventStatus,
           })
           .eq('id', eventId)
