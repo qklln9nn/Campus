@@ -73,11 +73,6 @@ export const routes: RouteRecordRaw[] = [
         component: () => import('../views/admin/AdminDashboardView.vue'),
       },
       {
-        path: 'events',
-        name: 'admin-events',
-        component: () => import('../views/admin/AdminEventsView.vue'),
-      },
-      {
         path: 'users',
         name: 'admin-users',
         component: () => import('../views/admin/AdminUsersView.vue'),
