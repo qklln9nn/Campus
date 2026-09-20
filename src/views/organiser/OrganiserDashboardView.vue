@@ -3,9 +3,9 @@
     <div class="organiser-dashboard">
       <header class="page-heading">
         <div>
-          <p class="eyebrow">YOUR CAMPUS, YOUR EVENTS</p>
-          <h1>My Events</h1>
-          <p>Create something worth coming to. Manage your events and attendees here.</p>
+          <p class="eyebrow">ORGANISER DASHBOARD</p>
+          <h1>My Campus Events</h1>
+          <p>Create, edit and oversee your events. Review submissions, monitor sign‑ups and manage attendees.</p>
         </div>
         <el-button type="primary" size="large" @click="router.push('/create')">
           <el-icon class="el-icon--left"><Plus /></el-icon>Create Event
@@ -13,8 +13,10 @@
       </header>
 
       <dl class="overview" aria-label="Event overview">
-        <div><dt>Events</dt><dd>{{ ownEvents.length }}</dd></div>
-        <div><dt>Confirmed registrations</dt><dd>{{ registrationCount }}</dd></div>
+        <div><dt>All Events</dt><dd>{{ ownEvents.length }}</dd></div>
+        <div><dt>Open Events</dt><dd>{{ openEvents.length }}</dd></div>
+        <div><dt>Pending Events</dt><dd>{{ pendingEvents.length }}</dd></div>
+        <div><dt>Cancel Events</dt><dd>{{ cancelledEvents.length }}</dd></div>
         <div><dt>On waitlists</dt><dd>{{ waitlistCount }}</dd></div>
       </dl>
 
@@ -146,7 +148,10 @@ const ownEvents = computed(() => {
   const id = authStore.currentUser?.id
   return id ? eventStore.events.filter(event => event.organiserId === id) : []
 })
-const registrationCount = computed(() => ownEvents.value.reduce((sum, event) => sum + event.registeredCount, 0))
+const pendingEvents = computed(() => ownEvents.value.filter(event => event.status === 'PENDING'))
+const openEvents = computed(() => ownEvents.value.filter(event => ['OPEN', 'FILLING_FAST', 'WAITLIST'].includes(event.status)))
+
+const cancelledEvents = computed(() => ownEvents.value.filter(event => event.status === 'CANCELLED'))
 const waitlistCount = computed(() => ownEvents.value.reduce((sum, event) => sum + event.waitlistCount, 0))
 function countStatus(status: string) {
   return ownEvents.value.filter(event => status === 'all' || statusGroup(event.status) === status).length
