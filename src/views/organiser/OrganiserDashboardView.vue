@@ -3,9 +3,9 @@
     <div class="organiser-dashboard">
       <header class="page-heading">
         <div>
-          <p class="eyebrow">YOUR CAMPUS, YOUR EVENTS</p>
-          <h1>My Events</h1>
-          <p>Create something worth coming to. Manage your events and attendees here.</p>
+          <p class="eyebrow">ORGANISER DASHBOARD</p>
+          <h1>My Campus Events</h1>
+          <p>Create, edit and oversee your events. Review submissions, monitor sign‑ups and manage attendees.</p>
         </div>
         <el-button type="primary" size="large" @click="router.push('/create')">
           <el-icon class="el-icon--left"><Plus /></el-icon>Create Event
@@ -13,8 +13,10 @@
       </header>
 
       <dl class="overview" aria-label="Event overview">
-        <div><dt>Events</dt><dd>{{ ownEvents.length }}</dd></div>
-        <div><dt>Confirmed registrations</dt><dd>{{ registrationCount }}</dd></div>
+        <div><dt>All Events</dt><dd>{{ ownEvents.length }}</dd></div>
+        <div><dt>Open Events</dt><dd>{{ openEvents.length }}</dd></div>
+        <div><dt>Pending Events</dt><dd>{{ pendingEvents.length }}</dd></div>
+        <div><dt>Cancel Events</dt><dd>{{ cancelledEvents.length }}</dd></div>
         <div><dt>On waitlists</dt><dd>{{ waitlistCount }}</dd></div>
       </dl>
 
@@ -123,6 +125,7 @@ const drawerOpen = ref(false)
 const selectedId = ref('')
 const attendeeTab = ref('registered')
 
+//Top status category bar
 const statusTabs = [
   { value: 'all', label: 'All' },
   { value: 'published', label: 'Published' },
@@ -136,21 +139,35 @@ const statusLabels: Record<EventStatus, string> = {
   CANCELLED: 'Cancelled', CLOSED: 'Closed', COMPLETED: 'Completed',
 }
 function statusLabel(status: EventStatus) { return statusLabels[status] || status }
+
+//Filter logic for top status bar
+//Classify the status of the event into five catagories
 function statusGroup(status: EventStatus) {
   if (['OPEN', 'FILLING_FAST', 'WAITLIST'].includes(status)) return 'published'
   if (status === 'PENDING') return 'pending'
   if (status === 'DRAFT') return 'draft'
   return 'other'
 }
+
+//============== computed properties ==================
+// Get the events owned by the current user
+// filter the current organiser's events
 const ownEvents = computed(() => {
   const id = authStore.currentUser?.id
   return id ? eventStore.events.filter(event => event.organiserId === id) : []
 })
-const registrationCount = computed(() => ownEvents.value.reduce((sum, event) => sum + event.registeredCount, 0))
+
+// count the data
+const pendingEvents = computed(() => ownEvents.value.filter(event => event.status === 'PENDING'))
+const openEvents = computed(() => ownEvents.value.filter(event => ['OPEN', 'FILLING_FAST', 'WAITLIST'].includes(event.status)))
+
+const cancelledEvents = computed(() => ownEvents.value.filter(event => event.status === 'CANCELLED'))
 const waitlistCount = computed(() => ownEvents.value.reduce((sum, event) => sum + event.waitlistCount, 0))
 function countStatus(status: string) {
   return ownEvents.value.filter(event => status === 'all' || statusGroup(event.status) === status).length
 }
+
+// Filter the events based on the search query and status filter
 const filteredEvents = computed(() => {
   const query = search.value.trim().toLowerCase()
   return ownEvents.value.filter(event =>
@@ -158,16 +175,25 @@ const filteredEvents = computed(() => {
     [event.title, event.location, event.category].some(value => value.toLowerCase().includes(query)),
   )
 })
+//分页逻辑
+//Slice the filtered list to extract only items for the current page (e.g., extract index 0 to 6 for page 1) for display.
 const paginatedEvents = computed(() => filteredEvents.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+
+// Reset the page to 1 when the search query or status filter changes
 watch([search, statusFilter], () => { page.value = 1 })
+//Reset the page to 1 when the filtered events count changes
 watch(() => filteredEvents.value.length, count => {
   page.value = Math.min(page.value, Math.max(1, Math.ceil(count / pageSize)))
 })
+//Reset the filters when the user clicks the reset button
 function resetFilters() { search.value = ''; statusFilter.value = 'all' }
+
 function editEvent(id: string) { void router.push({ path: '/create', query: { id } }) }
+
 function canDelete(event: EventItem) {
   return ['DRAFT', 'REJECTED', 'CANCELLED'].includes(event.status)
 }
+
 function canEdit(event: EventItem) {
   return event.status !== 'COMPLETED' && event.status !== 'CLOSED'
 }
@@ -178,6 +204,7 @@ function canViewAttendees(event: EventItem) {
   return ['OPEN', 'FILLING_FAST', 'WAITLIST', 'COMPLETED', 'CLOSED'].includes(event.status)
 }
 
+// when load the data from supabase
 async function loadEvents() {
   if (loading.value) return
   loading.value = true
@@ -189,18 +216,33 @@ async function loadEvents() {
 }
 onMounted(loadEvents)
 
-async function confirmAction(message: string, title: string, button: string) {
+async function confirmAction(
+  message: string,
+  title: string,
+  confirmButton: string,
+  cancelButton = 'Go back',
+): Promise<boolean> {
   try {
-    await ElMessageBox.confirm(message, title, { confirmButtonText: button, cancelButtonText: 'Cancel', type: 'warning' })
+    await ElMessageBox.confirm(message, title, {
+      confirmButtonText: confirmButton,
+      cancelButtonText: cancelButton,
+      type: 'warning',
+    })
+
     return true
-  } catch { return false }
+  } catch {
+    return false
+  }
 }
+
+//submit the draft to admin
 async function submitDraft(event: EventItem) {
   if (busyId.value) return
   if (!await confirmAction(`Submit "${event.title}" for review? It stays private until approved.`, 'Submit event', 'Submit')) return
   busyId.value = event.id
   const previousStatus = event.status
   try {
+    //Call the action in Pinia, send a request to the backend, and submit this draft for review.
     const result = await eventStore.submitEventForReview(event.id)
     if (!result.success) throw new Error(result.message || 'Submission failed.')
     ElMessage.success('Submitted for administrator review.')
@@ -210,6 +252,8 @@ async function submitDraft(event: EventItem) {
     ElMessage.error(error instanceof Error ? error.message : 'Submission failed.')
   } finally { busyId.value = '' }
 }
+
+//delete the event
 async function deleteEvent(event: EventItem) {
   if (busyId.value) return
   if (!canDelete(event)) {
@@ -219,8 +263,10 @@ async function deleteEvent(event: EventItem) {
   if (!await confirmAction(`Delete "${event.title}"? This cannot be undone.`, 'Delete event', 'Delete')) return
   busyId.value = event.id
   // The existing store removes locally before saving. Keep a snapshot for failure recovery.
+  //备份一下当前所有活动的数据，如果失败了，可以恢复
   const previousEvents = [...eventStore.events]
   try {
+    //call Pinia action, ask backend to delete this event
     const result = await eventStore.deleteEvent(event.id)
     if (!result.success) throw new Error(result.message || 'Deletion failed.')
     ElMessage.success('Event deleted.')
@@ -229,36 +275,68 @@ async function deleteEvent(event: EventItem) {
     ElMessage.error(error instanceof Error ? error.message : 'Deletion failed.')
   } finally { busyId.value = '' }
 }
+
 async function cancelEvent(event: EventItem) {
   if (busyId.value || !canCancel(event)) return
+
   const confirmed = await confirmAction(
-    `Cancel "${event.title}"? The event will stop accepting registrations, but this action does not send students a notification.`,
-    'Cancel event',
-    'Cancel event',
+    `Cancel "${event.title}"? The event will stop accepting registrations. This action does not automatically notify students.`,
+    'Cancel this event?',
+    'Yes, cancel event',
+    'Keep event',
   )
+
   if (!confirmed) return
+
   busyId.value = event.id
+
   try {
-    // 1. Immediately update reactive state in store
-    const target = eventStore.events.find(item => item.id === event.id)
-    if (target) {
-      target.status = 'CANCELLED'
-    }
-    // 2. Persist in Supabase
+    // 先更新数据库，不提前修改前端状态
     await cancelOwnedEvent(event.id)
-    ElMessage.success('Event cancelled. You may now keep or permanently delete it.')
+
+    // 数据库成功后重新读取，确保页面与 Supabase 完全一致
+    await eventStore.fetchEventsFromSupabase()
+
+    const updatedEvent = eventStore.events.find(
+      (item) => item.id === event.id,
+    )
+
+    if (!updatedEvent || updatedEvent.status !== 'CANCELLED') {
+      throw new Error(
+        'The database was updated, but the refreshed event status could not be confirmed.',
+      )
+    }
+
+    ElMessage.success(
+      'Event cancelled successfully. It can now be permanently deleted.',
+    )
   } catch (error) {
     console.warn('Cancel event error:', error)
-    ElMessage.error(error instanceof Error ? error.message : 'The event could not be cancelled.')
+
+    // 更新失败时重新读取数据库，避免页面显示假的 CANCELLED
+    await eventStore.fetchEventsFromSupabase()
+
+    ElMessage.error({
+      message:
+        error instanceof Error
+          ? error.message
+          : 'The event could not be cancelled.',
+      duration: 6000,
+    })
   } finally {
     busyId.value = ''
   }
 }
 
+//get the selected event attendees
 const selectedEvent = computed(() => ownEvents.value.find(event => event.id === selectedId.value))
+//// get the list of attendees
 const attendees = computed(() => eventStore.getAttendees(selectedId.value))
+//display the list of attendees
 const confirmedAttendees = computed(() => attendees.value.filter(person => person.status !== 'WAITLIST'))
+//display the list of waiting attendees
 const waitingAttendees = computed(() => attendees.value.filter(person => person.status === 'WAITLIST'))
+//open the attendees drawer
 async function openAttendees(event: EventItem) {
   if (eventStore.attendeesLoading) return
   selectedId.value = event.id
@@ -266,6 +344,7 @@ async function openAttendees(event: EventItem) {
   drawerOpen.value = true
   await loadAttendees()
 }
+//load the attendees data
 async function loadAttendees() {
   if (!selectedId.value || eventStore.attendeesLoading) return
   await eventStore.fetchEventAttendees(selectedId.value)

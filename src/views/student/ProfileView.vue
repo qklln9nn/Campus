@@ -7,7 +7,6 @@
       </header>
 
       <section v-if="user" class="profile-panel">
-        <!-- 账号信息：只读 -->
         <div class="profile-account">
           <el-avatar
             :size="64"
@@ -129,23 +128,28 @@ const authStore = useAuthStore()
 
 const user = computed(() => authStore.currentUser)
 
+//this computed property is used to determine the layout of the profile page
+//if the user role is 'ORGANISER', it will display the organiser layout
+//otherwise, it will display the student layout
+//如果是org，就会用organiser的layout，否则就是student的layout
 const profileLayout = computed(() =>
   authStore.userRole === 'ORGANISER'
     ? OrganiserLayout
     : StudentLayout,
 )
 
+//it is used to display the user initial
 const userInitial = computed(
   () => user.value?.name?.trim().charAt(0).toUpperCase() || 'U',
 )
 
+//it is used to display the user role
 const roleLabel = computed(() => {
   if (user.value?.role === 'ORGANISER') return 'Organiser'
   if (user.value?.role === 'ADMIN') return 'Administrator'
   return 'Student'
 })
 
-// 页面只管理这三个输入框
 const profileForm = reactive({
   name: '',
   major: '',
@@ -155,7 +159,9 @@ const profileForm = reactive({
 const isSaving = ref(false)
 const nameError = ref('')
 
-// value 沿用现有项目的数据格式，label 简化显示
+//it is used to store the year options,
+//the value is used to store in the backend,
+//the label is used to display in the frontend
 const yearOptions = [
   { label: 'Year 1', value: 'Freshman (Year 1)' },
   { label: 'Year 2', value: 'Sophomore (Year 2)' },
@@ -164,6 +170,9 @@ const yearOptions = [
   { label: 'Postgraduate', value: 'Postgraduate' },
 ]
 
+//it is used to check if the user has made any changes to the profile
+//if the user has made any changes to the profile, the save changes button will be enabled
+//if the user has not made any changes to the profile, the save changes button will be disabled
 const hasChanges = computed(() => {
   if (!user.value) return false
 
@@ -177,7 +186,7 @@ const hasChanges = computed(() => {
   )
 })
 
-// 从已保存的资料恢复输入框
+// 把输入框里的字全部恢复成数据库里原本保存的值
 function resetForm() {
   profileForm.name = user.value?.name || ''
   profileForm.major = user.value?.major || ''
@@ -185,7 +194,7 @@ function resetForm() {
   nameError.value = ''
 }
 
-// 初次加载或切换账号时初始化表单
+
 watch(
   () => user.value?.id,
   resetForm,
@@ -206,6 +215,10 @@ async function saveProfile() {
 
   isSaving.value = true
 
+  //this function is used to update the user profile, the data is stored in the backend
+  //and authStore call the backend to update the user profile
+  //the backend will return the updated user profile, which will be stored in the authStore
+  //then the user profile will be updated in the frontend
   try {
     await authStore.updateProfile({
       name,

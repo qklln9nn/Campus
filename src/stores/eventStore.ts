@@ -504,11 +504,13 @@ export const useEventStore = defineStore('event', () => {
     return { success: true }
   }
 
-  /**
+/**
    * Submit a draft event for administrator review.
    */
   async function submitEventForReview(eventId: string): Promise<{ success: boolean; message?: string }> {
     const event = events.value.find((e) => e.id === eventId)
+    const previousStatus = event?.status
+
     if (event) {
       event.status = 'PENDING'
     }
@@ -520,13 +522,15 @@ export const useEventStore = defineStore('event', () => {
           .update({ status: 'pending' })
           .eq('id', eventId)
 
-        if (!error) {
-          await fetchEventsFromSupabase()
-        } else {
+        if (error) {
+          if (event && previousStatus) event.status = previousStatus
           console.warn('Supabase submitEventForReview error:', error)
           return { success: false, message: error.message }
+        } else {
+          await fetchEventsFromSupabase()
         }
       } catch (err: unknown) {
+        if (event && previousStatus) event.status = previousStatus
         console.warn('Supabase submitEventForReview exception:', err)
         return { success: false, message: messageFrom(err, 'Unable to submit the event') }
       }
