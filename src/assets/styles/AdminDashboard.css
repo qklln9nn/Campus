@@ -1,0 +1,191 @@
+/* ==========================================================================
+   Admin Dashboard - Unified High Legibility Style
+   ========================================================================== */
+
+.admin-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  font-family: 'Lexend Variable', sans-serif !important;
+}
+
+/* --- Page Heading Section --- */
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.eyebrow {
+  color: #b91c1c !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 2px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 8px !important;
+  display: block;
+}
+
+.page-heading h1 {
+  margin: 0 0 8px;
+  font-size: clamp(30px, 3.5vw, 42px);
+  font-weight: 800;
+  color: #11213d;
+  letter-spacing: -0.02em;
+}
+
+.page-heading p {
+  margin: 0;
+  color: #5e6c80;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.page-heading > .el-button {
+  flex-shrink: 0;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background-color: #ffffff;
+  color: #11213d;
+  border: 1px solid #dedbd3;
+  box-shadow: 0 4px 12px rgba(17, 33, 61, 0.05);
+  transition: all 0.2s ease;
+}
+
+.page-heading > .el-button:hover {
+  background-color: #f7f5ef;
+  border-color: #11213d;
+  transform: translateY(-1px);
+}
+
+/* --- Overview Stats Cards Section --- */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin: 0;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e7e2d8;
+  gap: 24px;
+  box-shadow: 0 4px 16px rgba(17, 33, 61, 0.03);
+}
+
+.overview div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fdfdfc;
+  border: 1px solid #f1ece1;
+}
+
+.overview dt {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.overview dd {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #11213d;
+  line-height: 1.1;
+}
+
+.overview .success dd { color: #1e7e34; }
+.overview .warning dd { color: #b45309; }
+.overview .danger dd { color: #b91c1c; }
+
+/* --- Events Main Panel --- */
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.dashboard-panel {
+  background: #ffffff;
+  border: 1px solid #e7e2d8;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(17, 33, 61, 0.04);
+}
+
+.dashboard-panel header {
+  padding: 20px 28px;
+  border-bottom: 1px solid #f0eae1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fcfbf9;
+}
+
+.dashboard-panel header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 750;
+  color: #11213d;
+}
+
+.queue-item, .report-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 28px;
+  border-bottom: 1px solid #f3eee8;
+  transition: background-color 0.2s ease;
+}
+
+.queue-item:hover, .report-item:hover {
+  background-color: #faf8f5;
+}
+
+.queue-item:last-child, .report-item:last-child {
+  border-bottom: 0;
+}
+
+.queue-item img {
+  width: 64px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f1ebd8;
+}
+
+.item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.item-info strong {
+  color: #11213d;
+  font-weight: 700;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-info span {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 1000px) {
+  .content-grid { grid-template-columns: 1fr; }
+}
