@@ -1,3 +1,5 @@
+//the interface of profile
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export interface ProfileRow {
@@ -19,6 +21,7 @@ export interface ProfileRow {
   updated_at: string
 }
 
+//when user change the profile, use this interface to update the profile
 export interface ProfileUpdate {
   full_name?: string | null
   avatar_url?: string | null

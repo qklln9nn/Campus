@@ -203,20 +203,25 @@ async function handleLocalImageUpload(file: UploadFile) {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
       const filePath = `posters/${fileName}`
 
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('event-posters')
         .upload(filePath, rawFile, { cacheControl: '3600', upsert: true })
 
-      if (!uploadError) {
+      if (uploadError) {
+        console.error('Supabase Storage Upload Error:', uploadError.message)
+        ElMessage.warning(`Storage error: ${uploadError.message}. Falling back to base64.`)
+      } else if (uploadData) {
         const { data: publicUrlData } = supabase.storage
           .from('event-posters')
           .getPublicUrl(filePath)
+
         if (publicUrlData?.publicUrl) {
           uploadedUrl = publicUrlData.publicUrl
         }
       }
     }
 
+    // 3. 如果 Supabase 上传失败，降级为 Base64（注意：Base64 无法通过 Element Plus 的 type:'url' 规则）
     if (!uploadedUrl) {
       uploadedUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
@@ -226,11 +231,20 @@ async function handleLocalImageUpload(file: UploadFile) {
       })
     }
 
+    // 4. 更新表达数据并手动触发校验
     formData.posterUrl = uploadedUrl
-    ElMessage.success('Local image uploaded and preview updated!')
+
+    // 如果是 Base64 格式，清空 URL 格式校验报错
+    if (uploadedUrl.startsWith('data:')) {
+      formRef.value?.clearValidate('posterUrl')
+    } else {
+      formRef.value?.validateField('posterUrl').catch(() => {})
+    }
+
+    ElMessage.success('Local image uploaded successfully!')
   } catch (err) {
-    console.error('Local image upload error:', err)
-    ElMessage.error('Failed to process the selected image.')
+    console.error('Local image upload process error:', err)
+    ElMessage.error(err instanceof Error ? err.message : 'Failed to process the selected image.')
   } finally {
     isUploadingImage.value = false
   }
@@ -268,9 +282,23 @@ const formRules: FormRules = {
   timeRange: [{ type: 'array', required: true, min: 2, message: 'Choose a start and end time.', trigger: 'change' }],
   location: [{ required: true, message: 'Enter an event location.', trigger: 'blur' }],
   capacity: [{ required: true, type: 'number', message: 'Enter the event capacity.', trigger: 'change' }],
+
   posterUrl: [
-    { required: true, message: 'Enter a poster URL or choose a preset.', trigger: 'blur' },
-    { type: 'url', message: 'Enter a complete URL beginning with http:// or https://.', trigger: 'blur' },
+    { required: true, message: 'Enter a poster URL or upload an image.', trigger: 'change' },
+    {
+      validator: (_rule, value, callback) => {
+        if (!value) {
+          return callback(new Error('Enter a poster URL or choose a preset.'))
+        }
+        const isValid = /^(https?:\/\/|data:image\/)/i.test(value.trim())
+        if (isValid) {
+          callback()
+        } else {
+          callback(new Error('Enter a complete URL beginning with http:// or https://.'))
+        }
+      },
+      trigger: ['blur', 'change'],
+    },
   ],
 }
 
