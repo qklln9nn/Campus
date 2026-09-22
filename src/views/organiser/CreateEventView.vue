@@ -46,7 +46,15 @@
               <p v-if="categoryStore.error" class="field-note error-note">Categories could not be loaded. Refresh the page and try again.</p>
             </el-form-item>
 
-            <el-form-item label="Description" prop="description">
+            <el-form-item prop="description">
+              <template #label>
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                  <span>Description</span>
+                  <el-button type="primary" size="small" plain :loading="isAiLoading" @click="generateAICopy">
+                    ✨ AI Polish
+                  </el-button>
+                </div>
+              </template>
               <el-input v-model="formData.description" type="textarea" :rows="7" maxlength="2400"
                 show-word-limit placeholder="Explain what the event is, who it is for, and anything students should bring." />
             </el-form-item>
@@ -178,8 +186,35 @@ const isUploadingImage = ref(false)
 const submissionType = ref<'draft' | 'review' | ''>('')
 const editingEventId = ref('')
 const originalStatus = ref<EventStatus | null>(null)
+const isAiLoading = ref(false)
+
 const isEditMode = computed(() => Boolean(editingEventId.value))
 const canSubmitForReview = computed(() => originalStatus.value !== 'CANCELLED')
+
+async function generateAICopy() {
+  if (!formData.title && !formData.description) {
+    ElMessage.warning('Please enter a title or a draft description first.')
+    return
+  }
+  isAiLoading.value = true
+  try {
+    const { data, error } = await supabase.functions.invoke('ai-copilot', {
+      body: { title: formData.title, description: formData.description }
+    })
+    
+    if (error) throw error
+    if (data?.content) {
+      formData.description = data.content
+      ElMessage.success('AI copywriting applied successfully!')
+    } else {
+      throw new Error(data?.error || 'Invalid response')
+    }
+  } catch (error) {
+    ElMessage.error('AI generation failed. Please try again.')
+  } finally {
+    isAiLoading.value = false
+  }
+}
 
 async function handleLocalImageUpload(file: UploadFile) {
   const rawFile = file.raw
