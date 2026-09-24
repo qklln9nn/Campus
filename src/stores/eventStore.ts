@@ -45,6 +45,8 @@ interface RawEventRow {
   image_url: string | null
   poster_url?: string | null
   status: string
+  rating_sum?: number | null
+  rating_count?: number | null
 }
 
 function messageFrom(error: unknown, fallback: string): string {
@@ -638,6 +640,8 @@ export const useEventStore = defineStore('event', () => {
             isRegistered: userRegSet.has(item.id),
             isWaitlisted: userWaitlistSet.has(item.id),
             isBookmarked: userSavedSet.has(item.id),
+            ratingSum: item.rating_sum || 0,
+            ratingCount: item.rating_count || 0,
           }
         })
       }
