@@ -16,6 +16,27 @@
   </div>
 </header>
 
+<div class="ai-recommendation-section" style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #f6f8fd 0%, #f1f5f9 100%); border-radius: 12px; border: 1px solid #e2e8f0;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+    <h3 style="margin:0; display:flex; align-items:center; gap:8px; color: #1e293b; font-size: 18px;">
+      <el-icon><MagicStick /></el-icon> AI Recommendations For You
+    </h3>
+    <el-button type="primary" :loading="isAiLoading" @click="generateRecommendations">
+      Generate Suggestions
+    </el-button>
+  </div>
+  
+  <p v-if="aiReason" style="margin: 0 0 16px 0; color: #475569; font-size: 14px; font-style: italic;">
+    "{{ aiReason }}"
+  </p>
+
+  <el-row v-if="recommendedEvents.length > 0" :gutter="28">
+    <el-col v-for="event in recommendedEvents" :key="event.id" :xs="24" :sm="12" :md="8">
+      <EventCard :event="event" @register-event="openRegistrationDialog" @cancel-registration="handleCancelRegistration" @toggle-bookmark="handleToggleBookmark" />
+    </el-col>
+  </el-row>
+</div>
+
 <section class="control-bar">
   <div class="filter-group">
     <span class="filter-label">Filter events</span>
@@ -44,6 +65,11 @@
       <el-option label="Most popular" value="popular" />
       <el-option label="Available seats" value="seats" />
     </el-select>
+    
+    <el-radio-group v-model="viewMode" class="filter-select">
+      <el-radio-button value="list">List</el-radio-button>
+      <el-radio-button value="calendar">Calendar</el-radio-button>
+    </el-radio-group>
   </div>
 
   <button
@@ -58,36 +84,60 @@
 </section>
 
       <main class="content-body">
-        <div v-if="displayedEvents.length > 0" class="events-grid-container">
-          <el-row :gutter="28">
-            <el-col
-              v-for="event in displayedEvents"
-              :key="event.id"
-              :xs="24"
-              :sm="12"
-              :md="8"
-              :lg="8"
-              class="card-col"
-            >
-              <EventCard
-                :event="event"
-                @register-event="openRegistrationDialog"
-                @cancel-registration="handleCancelRegistration"
-                @toggle-bookmark="handleToggleBookmark"
-              />
-            </el-col>
-          </el-row>
+        <div v-if="viewMode === 'calendar'" class="calendar-wrapper">
+          <el-calendar>
+            <template #date-cell="{ data }">
+              <div class="calendar-day">
+                <div class="date-label">{{ data.day.split('-').pop() }}</div>
+                <div class="events-for-day">
+                  <div
+                    v-for="event in getEventsForDate(data.day)"
+                    :key="event.id"
+                    class="calendar-event-item"
+                    @click.stop="openRegistrationDialog(event)"
+                  >
+                    <el-tag size="small" disable-transitions class="calendar-tag">
+                      {{ event.title }}
+                    </el-tag>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </el-calendar>
         </div>
 
-        <!-- 空状态 -->
-        <div v-else class="empty-state-wrapper">
-          <el-empty description="No campus events found matching your criteria.">
-            <button class="brand-btn" @click="resetFilters">Reset Search Filters</button>
-          </el-empty>
-        </div>
+        <template v-else>
+          <div v-if="displayedEvents.length > 0" class="events-grid-container">
+            <el-row :gutter="28">
+              <el-col
+                v-for="event in displayedEvents"
+                :key="event.id"
+                :xs="24"
+                :sm="12"
+                :md="8"
+                :lg="8"
+                class="card-col"
+              >
+                <EventCard
+                  :event="event"
+                  @register-event="openRegistrationDialog"
+                  @cancel-registration="handleCancelRegistration"
+                  @toggle-bookmark="handleToggleBookmark"
+                />
+              </el-col>
+            </el-row>
+          </div>
+
+          <!-- 空状态 -->
+          <div v-else class="empty-state-wrapper">
+            <el-empty description="No campus events found matching your criteria.">
+              <button class="brand-btn" @click="resetFilters">Reset Search Filters</button>
+            </el-empty>
+          </div>
+        </template>
       </main>
 
-      <footer v-if="displayedEvents.length > 0" class="pagination-container">
+      <footer v-if="viewMode === 'list' && displayedEvents.length > 0" class="pagination-container">
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
@@ -189,13 +239,59 @@ import StudentLayout from '@/layouts/StudentLayout.vue'
 import EventCard from '@/components/EventCard.vue'
 import { useEventStore } from '@/stores/eventStore'
 import { useCategoryStore } from '@/stores/categoryStore'
+import { useAuthStore } from '@/stores/authStore'
 import type { EventItem } from '@/types/event'
-import { Refresh, Calendar, Location, User } from '@element-plus/icons-vue'
+import { Refresh, Calendar, Location, User, MagicStick } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
+import { supabase } from '@/lib/supabase'
 
 const eventStore = useEventStore()
 const categoryStore = useCategoryStore()
+const authStore = useAuthStore()
+
+const isAiLoading = ref(false)
+const aiReason = ref('')
+const recommendedEvents = ref<EventItem[]>([])
+
+async function generateRecommendations() {
+  if (!authStore.currentUser) {
+    ElMessage.warning('Please sign in first.')
+    return
+  }
+  isAiLoading.value = true
+  try {
+    const profile = {
+      interests: authStore.currentUser.interests || [],
+      clubs: authStore.currentUser.clubs || [],
+      availableTime: authStore.currentUser.availableTime || []
+    }
+    
+    const upcoming = sortedEvents.value.slice(0, 20).map(e => ({
+      id: e.id,
+      title: e.title,
+      category: e.category,
+      description: e.description,
+      startTime: e.startTime
+    }))
+
+    const { data, error } = await supabase.functions.invoke('ai-recommendation', {
+      body: { profile, events: upcoming }
+    })
+    
+    if (error) throw error
+    
+    if (data && data.recommendedIds) {
+      recommendedEvents.value = eventStore.events.filter(e => data.recommendedIds.includes(e.id))
+      aiReason.value = data.reason
+    }
+  } catch (error: any) {
+    console.error('AI Recommendation Error:', error)
+    ElMessage.error('Failed to load AI recommendations: ' + (error?.message || 'Unknown error'))
+  } finally {
+    isAiLoading.value = false
+  }
+}
 
 onMounted(() => {
   eventStore.searchQuery = ''
@@ -211,6 +307,13 @@ onMounted(() => {
 const sortBy = ref<'upcoming' | 'popular' | 'seats'>('upcoming')
 const currentPage = ref(1)
 const pageSize = ref(9)
+
+const viewMode = ref<'list' | 'calendar'>('list')
+function getEventsForDate(dateStr: string) {
+  return sortedEvents.value.filter(
+    (e) => e.startsAt?.split('T')[0] === dateStr
+  )
+}
 
 // Registration Modal State
 const showRegistrationModal = ref(false)
@@ -339,4 +442,31 @@ function handleCancelRegistration(eventId: string) {
 
 <style scoped>
 @import '@/assets/styles/StudentDashboard.css';
+
+.calendar-wrapper {
+  background: var(--el-bg-color, #fff);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.calendar-day {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.events-for-day {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.calendar-event-item {
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+.calendar-tag {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>

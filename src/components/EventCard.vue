@@ -40,6 +40,16 @@
         <span>{{ event.location }}</span>
       </p>
 
+      <p v-if="event.ratingCount && event.ratingCount > 0" style="color: #f59e0b; font-size: 13px; font-weight: 500; display:flex; align-items:center; gap: 4px; margin-top: 4px; margin-bottom: 0;">
+        <el-icon><StarFilled /></el-icon>
+        {{ (event.ratingSum! / event.ratingCount!).toFixed(1) }} / 5.0 ({{ event.ratingCount }} ratings)
+      </p>
+
+      <div v-if="event.isRegistered && isPastEvent" style="margin-top: 12px; display: flex; align-items: center; gap: 8px;">
+        <span v-if="hasRated" style="color: #9ca3af; font-size: 13px;">✅ You have rated this event</span>
+        <el-rate v-else v-model="myRating" @change="submitMyRating" />
+      </div>
+
       <!-- 只显示需要提醒用户的状态 -->
       <p
         v-if="cardStatus"
@@ -533,6 +543,31 @@ async function toggleAiSummary() {
 
   if (aiVisible.value && !aiSummary.value) {
     await loadAiSummary()
+  }
+}
+
+import { supabase } from '@/lib/supabase'
+
+const isPastEvent = computed(() => {
+  const end = parseEventDate(props.event.endTime) || parseEventDate(props.event.startsAt || props.event.startTime)
+  return end ? end.getTime() < Date.now() : false
+})
+
+const hasRated = ref(localStorage.getItem(`rated_${props.event.id}`) === 'true')
+const myRating = ref(0)
+
+async function submitMyRating(val: number) {
+  if (val === 0) return
+  hasRated.value = true
+  localStorage.setItem(`rated_${props.event.id}`, 'true')
+  
+  props.event.ratingSum = (props.event.ratingSum || 0) + val
+  props.event.ratingCount = (props.event.ratingCount || 0) + 1
+  
+  try {
+    await supabase.rpc('submit_event_rating', { p_event_id: props.event.id, p_rating: val })
+  } catch (error) {
+    console.error('Failed to submit rating', error)
   }
 }
 </script>

@@ -26,8 +26,37 @@
         </el-input>
       </div>
 
-      <el-dropdown trigger="click">
-        <button type="button" class="student-account">
+      <div style="display: flex; align-items: center; gap: 20px;">
+        <el-popover
+          placement="bottom-end"
+          :width="320"
+          trigger="click"
+        >
+          <template #reference>
+            <button type="button" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; color:#555; padding: 4px;" aria-label="Notifications">
+              <el-badge :value="notifications.length" :hidden="notifications.length === 0" type="primary">
+                <el-icon :size="22"><Bell /></el-icon>
+              </el-badge>
+            </button>
+          </template>
+          
+          <div>
+            <h4 style="margin:0 0 12px; padding-bottom:12px; border-bottom:1px solid #eee; font-size: 15px;">Notifications</h4>
+            <div v-if="notifications.length === 0" style="text-align:center; color:#999; padding:20px 0; font-size: 14px;">
+              No new notifications
+            </div>
+            <div v-else style="max-height: 300px; overflow-y: auto;">
+              <div v-for="item in notifications" :key="item.id" style="padding: 12px 0; border-bottom: 1px solid #f5f5f5;">
+                <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--el-color-primary);">{{ item.title }}</div>
+                <div style="font-size: 13px; color: #555; line-height: 1.4;">{{ item.message }}</div>
+                <div style="font-size: 12px; color: #999; margin-top: 6px;">{{ item.time }}</div>
+              </div>
+            </div>
+          </div>
+        </el-popover>
+
+        <el-dropdown trigger="click">
+          <button type="button" class="student-account">
           <el-avatar
             :size="34"
             :src="authStore.currentUser?.avatar || undefined"
@@ -60,6 +89,7 @@
           </el-dropdown-menu>
         </template>
       </el-dropdown>
+      </div>
     </header>
 
     <div class="student-body">
@@ -120,6 +150,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   ArrowDown,
+  Bell,
   Calendar,
   Clock,
   Grid,
@@ -141,6 +172,40 @@ const authStore = useAuthStore()
 const eventStore = useEventStore()
 
 const isSigningOut = ref(false)
+
+const notifications = computed(() => {
+  const list = []
+  
+  eventStore.events.filter(e => e.isRegistered).forEach(e => {
+    const isPast = e.startsAt ? new Date(e.startsAt).getTime() < Date.now() : false;
+    const isActive = e.status !== 'COMPLETED' && e.status !== 'CANCELLED' && e.status !== 'CLOSED';
+
+    if (!isPast && isActive) {
+      list.push({
+        id: `rem-${e.id}`,
+        title: 'Upcoming Event Reminder',
+        message: `"${e.title}" is happening on ${e.startTime} at ${e.location}. See you there!`,
+        time: 'Just now'
+      })
+    }
+  })
+
+  eventStore.events.filter(e => e.isWaitlisted).forEach(e => {
+    const isPast = e.startsAt ? new Date(e.startsAt).getTime() < Date.now() : false;
+    const isActive = e.status !== 'COMPLETED' && e.status !== 'CANCELLED' && e.status !== 'CLOSED';
+
+    if (!isPast && isActive) {
+      list.push({
+        id: `wl-${e.id}`,
+        title: 'Waitlist Update',
+        message: `You are on the waitlist for "${e.title}" (${e.startTime}). We'll let you know if a spot opens up.`,
+        time: 'Recently'
+      })
+    }
+  })
+  
+  return list.slice(0, 5)
+})
 
 const isDashboard = computed(
   () => route.path === '/dashboard',
