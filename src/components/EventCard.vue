@@ -349,10 +349,7 @@ const aiLoading = ref(false)
 const aiSummary = ref('')
 const aiError = ref('')
 
-// 日期处理：兼容数据库和创建页面的预览格式
-// 2026-09-19 • 12:30:00
-// 2026-09-19 12:30
-// 2026-09-19T12:30:00
+// 日期处理，兼容数据库和创建页面的预览格式
 function parseEventDate(value: string): Date | null {
   const normalized = value
     .trim()
