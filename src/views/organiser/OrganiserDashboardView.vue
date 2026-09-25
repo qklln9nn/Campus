@@ -92,6 +92,17 @@
               <el-table-column prop="name" label="Name" min-width="130" />
               <el-table-column prop="email" label="Email" min-width="200" />
               <el-table-column prop="registeredAt" label="Registered on" min-width="180" />
+              <el-table-column v-if="attendeeTab === 'registered'" label="Actions" min-width="120">
+                <template #default="scope">
+                  <el-button 
+                    size="small" 
+                    :type="scope.row.status === 'CHECKED_IN' ? 'success' : 'default'" 
+                    @click="eventStore.toggleCheckIn(selectedId, scope.row.id)"
+                  >
+                    {{ scope.row.status === 'CHECKED_IN' ? 'Checked In' : 'Check In' }}
+                  </el-button>
+                </template>
+              </el-table-column>
             </el-table>
           </template>
         </div>
