@@ -5,8 +5,8 @@
         <div>
           <p class="eyebrow">ORGANISER DASHBOARD</p>
           <h1>My Campus Events</h1>
-          <p>Create, edit and oversee your events. Review submissions, monitor sign‑ups and manage attendees.</p>
         </div>
+        <!-- /*添加一个“转到create event”按钮*/ -->
         <el-button type="primary" size="large" @click="router.push('/create')">
           <el-icon class="el-icon--left"><Plus /></el-icon>Create Event
         </el-button>
@@ -17,7 +17,7 @@
         <div><dt>Open Events</dt><dd>{{ openEvents.length }}</dd></div>
         <div><dt>Pending Events</dt><dd>{{ pendingEvents.length }}</dd></div>
         <div><dt>Cancel Events</dt><dd>{{ cancelledEvents.length }}</dd></div>
-        <div><dt>On waitlists</dt><dd>{{ waitlistCount }}</dd></div>
+        <div><dt>On Waitlists</dt><dd>{{ waitlistCount }}</dd></div>
       </dl>
 
       <section class="events-panel" aria-label="Your events">
@@ -25,7 +25,8 @@
           <div class="status-filters" aria-label="Filter by status">
             <button v-for="tab in statusTabs" :key="tab.value" type="button"
               :class="{ selected: statusFilter === tab.value }"
-              :aria-pressed="statusFilter === tab.value" @click="statusFilter = tab.value">
+              :aria-pressed="statusFilter === tab.value"
+              @click="statusFilter = tab.value">
               {{ tab.label }} <span>{{ countStatus(tab.value) }}</span>
             </button>
           </div>
@@ -43,41 +44,111 @@
             <el-button v-if="search || statusFilter !== 'all'" @click="resetFilters">Clear filters</el-button>
             <el-button v-else type="primary" @click="router.push('/create')">Create your first event</el-button>
           </el-empty>
+
           <article v-for="event in paginatedEvents" :key="event.id" class="event-row">
             <img class="event-poster" :src="event.posterUrl || DEFAULT_FALLBACK_POSTER" :alt="event.title"
               loading="lazy" @error="handlePosterError($event, event.category)" />
-            <div class="event-info">
+            <!-- event information -->
+              <div class="event-info">
               <div class="event-labels"><span>{{ event.category }}</span><span class="status-label" :data-status="event.status">{{ statusLabel(event.status) }}</span></div>
               <h2>{{ event.title }}</h2>
               <p>{{ event.startTime }}</p>
               <p>{{ event.location }}</p>
               <div class="attendance-counts"><strong>{{ event.registeredCount }} / {{ event.capacity }}</strong> registered <span>· {{ event.waitlistCount }} waitlisted</span></div>
             </div>
+
+            <!-- event actions （右侧活动action栏，三种情况，draft, viewAttendees, noAttendeeList）-->
             <div class="event-actions">
-              <el-button v-if="event.status === 'DRAFT'" type="primary" :loading="busyId === event.id" :disabled="busyId !== ''" @click="submitDraft(event)">Submit for Review</el-button>
-              <el-button v-else-if="canViewAttendees(event)" type="primary" plain :disabled="eventStore.attendeesLoading" @click="openAttendees(event)">View Attendees</el-button>
-              <span v-else class="action-note">No attendee list for this status</span>
+              <el-button
+              v-if="event.status === 'DRAFT'"
+              type="primary"
+              :loading="busyId === event.id"
+              :disabled="busyId !== ''"
+              @click="submitDraft(event)"
+              >
+                Submit for Review
+              </el-button>
+
+              <el-button
+              v-else-if="canViewAttendees(event)"
+              type="primary" plain
+              :disabled="eventStore.attendeesLoading"
+              @click="openAttendees(event)"
+              >
+                View Attendees
+              </el-button>
+
+              <span
+              v-else class="action-note"
+              >
+                No attendee list for this status
+              </span>
+
+              <!-- 对 Edit, Cancel, Delete 状态的显示 -->
               <div class="secondary-actions">
-                <el-button v-if="canEdit(event)" :disabled="busyId !== ''" @click="editEvent(event.id)">Edit</el-button>
-                <el-button v-if="canCancel(event)" type="danger" plain :loading="busyId === event.id" :disabled="busyId !== ''" @click="cancelEvent(event)">Cancel</el-button>
-                <el-button v-if="canDelete(event)" type="danger" text :disabled="busyId !== ''" @click="deleteEvent(event)">Delete</el-button>
+                <el-button
+                v-if="canEdit(event)"
+                :disabled="busyId !== ''"
+                @click="editEvent(event.id)"
+                >
+                  Edit
+                </el-button>
+
+                <el-button
+                v-if="canCancel(event)" type="danger" plain
+                :loading="busyId === event.id" :disabled="busyId !== ''"
+                @click="cancelEvent(event)"
+                >
+                  Cancel
+                </el-button>
+
+                <el-button v-if="canDelete(event)" type="danger" text
+                :disabled="busyId !== ''"
+                @click="deleteEvent(event)"
+                >
+                  Delete
+                </el-button>
               </div>
             </div>
+
           </article>
-          <div v-if="filteredEvents.length > pageSize" class="pagination">
-            <el-pagination v-model:current-page="page" :page-size="pageSize" :total="filteredEvents.length" layout="prev, pager, next" />
+          <div
+          v-if="filteredEvents.length
+          > pageSize" class="pagination">
+            <el-pagination v-model:current-page="page"
+            :page-size="pageSize"
+            :total="filteredEvents.length" layout="prev, pager, next" />
           </div>
         </template>
       </section>
 
-      <el-drawer v-model="drawerOpen" title="Event attendees" size="min(720px, 100vw)" destroy-on-close>
+      <!-- 对于 Attendees 的展示 抽屉页面 右边弹出-->
+      <el-drawer
+      v-model="drawerOpen"
+      title="Event attendees"
+      size="min(720px, 100vw)"
+      destroy-on-close>
+
         <div class="attendee-panel">
           <h2>{{ selectedEvent?.title }}</h2>
-          <el-skeleton v-if="eventStore.attendeesLoading" :rows="5" animated />
-          <template v-else-if="eventStore.attendeesError">
-            <el-alert :title="eventStore.attendeesError" type="error" :closable="false" show-icon />
-            <el-button @click="loadAttendees">Retry</el-button>
+          <el-skeleton
+          v-if="eventStore.attendeesLoading"
+          :rows="5"
+          animated />
+
+          <template
+          v-else-if="eventStore.attendeesError">
+            <el-alert
+            :title="eventStore.attendeesError"
+            type="error"
+            :closable="false"
+            show-icon />
+            <el-button
+            @click="loadAttendees"
+            >Retry
+          </el-button>
           </template>
+
           <template v-else>
             <div class="attendee-toolbar">
               <p>{{ confirmedAttendees.length }} confirmed · {{ waitingAttendees.length }} waitlisted</p>
@@ -163,6 +234,9 @@ const openEvents = computed(() => ownEvents.value.filter(event => ['OPEN', 'FILL
 
 const cancelledEvents = computed(() => ownEvents.value.filter(event => event.status === 'CANCELLED'))
 const waitlistCount = computed(() => ownEvents.value.reduce((sum, event) => sum + event.waitlistCount, 0))
+
+
+
 function countStatus(status: string) {
   return ownEvents.value.filter(event => status === 'all' || statusGroup(event.status) === status).length
 }
@@ -262,8 +336,6 @@ async function deleteEvent(event: EventItem) {
   }
   if (!await confirmAction(`Delete "${event.title}"? This cannot be undone.`, 'Delete event', 'Delete')) return
   busyId.value = event.id
-  // The existing store removes locally before saving. Keep a snapshot for failure recovery.
-  //备份一下当前所有活动的数据，如果失败了，可以恢复
   const previousEvents = [...eventStore.events]
   try {
     //call Pinia action, ask backend to delete this event
@@ -336,6 +408,7 @@ const attendees = computed(() => eventStore.getAttendees(selectedId.value))
 const confirmedAttendees = computed(() => attendees.value.filter(person => person.status !== 'WAITLIST'))
 //display the list of waiting attendees
 const waitingAttendees = computed(() => attendees.value.filter(person => person.status === 'WAITLIST'))
+
 //open the attendees drawer
 async function openAttendees(event: EventItem) {
   if (eventStore.attendeesLoading) return

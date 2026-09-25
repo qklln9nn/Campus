@@ -35,4 +35,6 @@ export interface EventItem {
   isRegistered: boolean;
   isWaitlisted: boolean;
   isBookmarked: boolean;
+  ratingSum?: number;
+  ratingCount?: number;
 }
