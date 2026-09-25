@@ -80,6 +80,57 @@
             </el-form-item>
           </div>
 
+          <el-form-item label="Interests">
+            <el-select
+              v-model="profileForm.interests"
+              multiple
+              filterable
+              allow-create
+              placeholder="e.g. Technology, Music, Sports"
+              style="width: 100%"
+            >
+              <el-option label="Technology" value="Technology" />
+              <el-option label="Music" value="Music" />
+              <el-option label="Sports" value="Sports" />
+              <el-option label="Arts & Design" value="Arts & Design" />
+              <el-option label="Business" value="Business" />
+              <el-option label="Science" value="Science" />
+              <el-option label="Photography" value="Photography" />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="Clubs & Societies">
+            <el-select
+              v-model="profileForm.clubs"
+              multiple
+              filterable
+              allow-create
+              placeholder="e.g. Computer Science Club, Drama Society"
+              style="width: 100%"
+            >
+              <el-option label="Computer Science Club" value="Computer Science Club" />
+              <el-option label="Drama Society" value="Drama Society" />
+              <el-option label="Engineering Society" value="Engineering Society" />
+              <el-option label="Debate Club" value="Debate Club" />
+              <el-option label="Film Club" value="Film Club" />
+              <el-option label="Music Society" value="Music Society" />
+            </el-select>
+          </el-form-item>
+
+          <el-form-item label="Availability">
+            <el-select
+              v-model="profileForm.availableTime"
+              multiple
+              placeholder="Select your free time"
+              style="width: 100%"
+            >
+              <el-option label="Weekdays Morning" value="Weekdays Morning" />
+              <el-option label="Weekdays Afternoon" value="Weekdays Afternoon" />
+              <el-option label="Weekdays Evening" value="Weekdays Evening" />
+              <el-option label="Weekends" value="Weekends" />
+            </el-select>
+          </el-form-item>
+
           <div class="profile-actions">
             <span class="profile-save-note" role="status">
               {{ hasChanges ? 'You have unsaved changes.' : '' }}
@@ -154,6 +205,16 @@ const profileForm = reactive({
   name: '',
   major: '',
   grade: '',
+  interests: [] as string[],
+  clubs: [] as string[],
+  availableTime: [] as string[],
+  notificationPreferences: {
+    emailAlerts: true,
+    pushNotifications: true,
+    eventReminders: true,
+    waitlistUpdates: true,
+    weeklyDigest: false,
+  }
 })
 
 const isSaving = ref(false)
@@ -179,10 +240,11 @@ const hasChanges = computed(() => {
   return (
     profileForm.name.trim() !== user.value.name ||
     profileForm.major.trim() !== (user.value.major || '') ||
-    (
-      user.value.role === 'STUDENT' &&
-      profileForm.grade !== (user.value.grade || '')
-    )
+    (user.value.role === 'STUDENT' && profileForm.grade !== (user.value.grade || '')) ||
+    JSON.stringify(profileForm.interests) !== JSON.stringify(user.value.interests) ||
+    JSON.stringify(profileForm.clubs) !== JSON.stringify(user.value.clubs) ||
+    JSON.stringify(profileForm.availableTime) !== JSON.stringify(user.value.availableTime) ||
+    JSON.stringify(profileForm.notificationPreferences) !== JSON.stringify(user.value.notificationPreferences)
   )
 })
 
@@ -191,6 +253,16 @@ function resetForm() {
   profileForm.name = user.value?.name || ''
   profileForm.major = user.value?.major || ''
   profileForm.grade = user.value?.grade || ''
+  profileForm.interests = [...(user.value?.interests || [])]
+  profileForm.clubs = [...(user.value?.clubs || [])]
+  profileForm.availableTime = [...(user.value?.availableTime || [])]
+  profileForm.notificationPreferences = {
+    emailAlerts: user.value?.notificationPreferences?.emailAlerts ?? true,
+    pushNotifications: user.value?.notificationPreferences?.pushNotifications ?? true,
+    eventReminders: user.value?.notificationPreferences?.eventReminders ?? true,
+    waitlistUpdates: user.value?.notificationPreferences?.waitlistUpdates ?? true,
+    weeklyDigest: user.value?.notificationPreferences?.weeklyDigest ?? false,
+  }
   nameError.value = ''
 }
 
@@ -226,6 +298,10 @@ async function saveProfile() {
       ...(user.value.role === 'STUDENT'
         ? { grade: profileForm.grade }
         : {}),
+      interests: profileForm.interests,
+      clubs: profileForm.clubs,
+      availableTime: profileForm.availableTime,
+      notificationPreferences: profileForm.notificationPreferences,
     })
 
     resetForm()

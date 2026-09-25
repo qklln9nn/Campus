@@ -45,6 +45,8 @@ interface RawEventRow {
   image_url: string | null
   poster_url?: string | null
   status: string
+  rating_sum?: number | null
+  rating_count?: number | null
 }
 
 function messageFrom(error: unknown, fallback: string): string {
@@ -638,6 +640,8 @@ export const useEventStore = defineStore('event', () => {
             isRegistered: userRegSet.has(item.id),
             isWaitlisted: userWaitlistSet.has(item.id),
             isBookmarked: userSavedSet.has(item.id),
+            ratingSum: item.rating_sum || 0,
+            ratingCount: item.rating_count || 0,
           }
         })
       }
@@ -676,24 +680,34 @@ export const useEventStore = defineStore('event', () => {
   }
 
   async function deleteEvent(eventId: string): Promise<{ success: boolean; message?: string }> {
-    markEventDeletedLocally(eventId)
 
-    const index = events.value.findIndex((e) => e.id === eventId)
-    if (index !== -1) {
-      events.value.splice(index, 1)
-      delete eventAttendeesMap.value[eventId]
-    }
-
-    if (supabase && import.meta.env.VITE_SUPABASE_URL) {
-      try {
-        await supabase.from('registrations').delete().eq('event_id', eventId)
-        await supabase.from('saved_events').delete().eq('event_id', eventId)
-        await supabase.from('events').delete().eq('id', eventId)
-      } catch (err: unknown) {
-        console.warn('Supabase delete notice:', err)
+    try{
+      const { data, error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId)
+        .select('id')
+        .maybeSingle()
+      if (error) {
+          return {
+          success: false,
+          message: `Database deletion failed: ${error.message}`,
+       }
+      } if (!data) {
+      return {
+       success: false,
+      message: 'The event was not deleted. It may not belong to this organiser or its current status does not allow deletion.',
+        }
       }
+      } catch (error) {
+        return {
+          success: false,
+          message: messageFrom(error, 'Unable to delete the event.'),
+        }
     }
 
+    events.value = events.value.filter((event) => event.id !== eventId)
+    delete eventAttendeesMap.value[eventId]
     return { success: true }
   }
 
