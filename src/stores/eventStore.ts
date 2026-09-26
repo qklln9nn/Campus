@@ -807,12 +807,21 @@ export const useEventStore = defineStore('event', () => {
     }
   }
 
-  function toggleCheckIn(eventId: string, attendeeId: string) {
+  async function toggleCheckIn(eventId: string, attendeeId: string) {
     const list = eventAttendeesMap.value[eventId]
     if (!list) return
     const target = list.find((a) => a.id === attendeeId)
     if (target) {
-      target.status = target.status === 'CHECKED_IN' ? 'REGISTERED' : 'CHECKED_IN'
+      const newStatus = target.status === 'CHECKED_IN' ? 'REGISTERED' : 'CHECKED_IN'
+      target.status = newStatus
+      
+      if (supabase && import.meta.env.VITE_SUPABASE_URL) {
+        const dbStatus = newStatus === 'CHECKED_IN' ? 'attended' : 'pending'
+        await supabase
+          .from('registrations')
+          .update({ attendance_status: dbStatus })
+          .eq('id', attendeeId)
+      }
     }
   }
 
