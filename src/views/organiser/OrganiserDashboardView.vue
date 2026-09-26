@@ -21,6 +21,7 @@
       </dl>
 
       <section class="events-panel" aria-label="Your events">
+        <!-- event list 顶部分类标签栏 -->
         <div class="list-tools">
           <div class="status-filters" aria-label="Filter by status">
             <button v-for="tab in statusTabs" :key="tab.value" type="button"
@@ -30,6 +31,8 @@
               {{ tab.label }} <span>{{ countStatus(tab.value) }}</span>
             </button>
           </div>
+
+          <!-- search bar -->
           <div class="search-tools">
             <el-input v-model="search" clearable placeholder="Search your events" aria-label="Search your events">
               <template #prefix><el-icon><Search /></el-icon></template>
@@ -196,6 +199,26 @@ const drawerOpen = ref(false)
 const selectedId = ref('')
 const attendeeTab = ref('registered')
 
+
+// ============== status label in Event Card ==================
+const statusLabels: Record<EventStatus, string> = {
+  OPEN: 'Published',
+  FILLING_FAST: 'Filling fast',
+  WAITLIST: 'Waitlist open',
+  DRAFT: 'Draft',
+  PENDING: 'Pending review',
+  REJECTED: 'Rejected',
+  CANCELLED: 'Cancelled',
+  CLOSED: 'Closed',
+  COMPLETED: 'Completed',
+}
+function statusLabel(status: EventStatus) {
+  return statusLabels[status] || status
+}
+
+
+//Filter logic for top status bar
+//Classify the status of the event into five catagories
 //Top status category bar
 const statusTabs = [
   { value: 'all', label: 'All' },
@@ -204,17 +227,10 @@ const statusTabs = [
   { value: 'draft', label: 'Drafts' },
   { value: 'other', label: 'Other' },
 ]
-const statusLabels: Record<EventStatus, string> = {
-  OPEN: 'Published', FILLING_FAST: 'Filling fast', WAITLIST: 'Waitlist open',
-  DRAFT: 'Draft', PENDING: 'Pending review', REJECTED: 'Rejected',
-  CANCELLED: 'Cancelled', CLOSED: 'Closed', COMPLETED: 'Completed',
-}
-function statusLabel(status: EventStatus) { return statusLabels[status] || status }
 
-//Filter logic for top status bar
-//Classify the status of the event into five catagories
 function statusGroup(status: EventStatus) {
-  if (['OPEN', 'FILLING_FAST', 'WAITLIST'].includes(status)) return 'published'
+  if (['OPEN', 'FILLING_FAST', 'WAITLIST'].includes(status))
+      return 'published'
   if (status === 'PENDING') return 'pending'
   if (status === 'DRAFT') return 'draft'
   return 'other'
