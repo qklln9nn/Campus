@@ -195,7 +195,7 @@ import OrganiserLayout from '@/layouts/OrganiserLayout.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useEventStore } from '@/stores/eventStore'
 import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
-import { cancelOwnedEvent } from '@/lib/organiserEvents'
+import { cancelOwnedEvent, completeFinishedOwnedEvents,} from '@/lib/organiserEvents'
 import type { EventItem, EventStatus } from '@/types/event'
 
 const router = useRouter()
@@ -298,9 +298,15 @@ watch(() => filteredEvents.value.length, count => {
   page.value = Math.min(page.value, Math.max(1, Math.ceil(count / pageSize)))
 })
 //Reset the filters when the user clicks the reset button
-function resetFilters() { search.value = ''; statusFilter.value = 'all' }
+function resetFilters() {
+  search.value = '';
+  statusFilter.value = 'all'
+}
 
-function editEvent(id: string) { void router.push({ path: '/create', query: { id } }) }
+//Edit Event
+function editEvent(id: string) {
+  void router.push({ path: '/create', query: { id } })
+}
 
 function canDelete(event: EventItem) {
   return ['DRAFT', 'REJECTED', 'CANCELLED'].includes(event.status)
@@ -317,15 +323,40 @@ function canViewAttendees(event: EventItem) {
 }
 
 // when load the data from supabase
+// Synchronise completed statuses and then load events from Supabase.
 async function loadEvents() {
   if (loading.value) return
+
   loading.value = true
+
   try {
+    try {
+      await completeFinishedOwnedEvents()
+    } catch (syncError) {
+      console.warn(
+        'Unable to synchronise completed events:',
+        syncError,
+      )
+
+      ElMessage.warning(
+        syncError instanceof Error
+          ? syncError.message
+          : 'Completed event statuses could not be synchronised.',
+      )
+    }
+
     await eventStore.fetchEventsFromSupabase()
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Unable to load events.')
-  } finally { loading.value = false }
+    ElMessage.error(
+      error instanceof Error
+        ? error.message
+        : 'Unable to load events.',
+    )
+  } finally {
+    loading.value = false
+  }
 }
+
 onMounted(loadEvents)
 
 async function confirmAction(
@@ -401,7 +432,6 @@ async function cancelEvent(event: EventItem) {
   busyId.value = event.id
 
   try {
-    // 先更新数据库，不提前修改前端状态
     await cancelOwnedEvent(event.id)
 
     // 数据库成功后重新读取，确保页面与 Supabase 完全一致
@@ -423,7 +453,7 @@ async function cancelEvent(event: EventItem) {
   } catch (error) {
     console.warn('Cancel event error:', error)
 
-    // 更新失败时重新读取数据库，避免页面显示假的 CANCELLED
+
     await eventStore.fetchEventsFromSupabase()
 
     ElMessage.error({

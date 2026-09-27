@@ -201,7 +201,7 @@ async function generateAICopy() {
     const { data, error } = await supabase.functions.invoke('ai-copilot', {
       body: { title: formData.title, description: formData.description }
     })
-    
+
     if (error) throw error
     if (data?.content) {
       formData.description = data.content
@@ -339,9 +339,11 @@ const formRules: FormRules = {
 function extractDate(value: string) { return value.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? '' }
 function extractTime(value: string) { return value.match(/\d{1,2}:\d{2}/)?.[0]?.padStart(5, '0') ?? '' }
 
+//When create/edit event page, Initialization logic
 onMounted(async () => {
   loadingPage.value = true
   loadError.value = ''
+  // complete these two request : <category data> and <all events data>
   const results = await Promise.allSettled([
     categoryStore.fetchCategories(),
     eventStore.fetchEventsFromSupabase(),
@@ -350,24 +352,32 @@ onMounted(async () => {
     loadError.value = 'The event form could not load its data. Please refresh and try again.'
   }
 
+  //If the URL includes the <id> , it is Edit.
+  //If not, it is a new event to create.
   const queryId = typeof route.query.id === 'string' ? route.query.id : ''
   if (queryId) {
     const event = eventStore.events.find(item => item.id === queryId)
+    //Verity 1 : if the event exists
     if (!event) {
       ElMessage.error('This event could not be found.')
       await router.replace('/organiser/dashboard')
       return
     }
+    //Verity 2 : Verify whether the operator is the organizer of this event.
+    //Do not edit others' events.
     if (event.organiserId && event.organiserId !== authStore.currentUser?.id) {
       ElMessage.error('You can only edit your own events.')
       await router.replace('/organiser/dashboard')
       return
     }
+    //2: If the event can be edited
     if (event.status === 'COMPLETED' || event.status === 'CLOSED') {
       ElMessage.warning('Completed events can no longer be edited.')
       await router.replace('/organiser/dashboard')
       return
     }
+
+    //transfer the backend activity data into the form formData
     editingEventId.value = event.id
     originalStatus.value = event.status
     formData.title = event.title
@@ -379,6 +389,10 @@ onMounted(async () => {
     formData.capacity = event.capacity
     formData.posterUrl = event.posterUrl
   } else {
+    //This is for creating a new event.
+    //The form is cleared,
+    // and the dropdown for classification is initially set to select the first available category;
+    // if there are no categories available, it will remain empty.
     formData.category = categoryStore.activeCategories[0]?.slug ?? ''
   }
   loadingPage.value = false
@@ -396,6 +410,7 @@ const previewDate = computed(() => {
 })
 function handlePreviewError(event: Event) { handlePosterError(event); formData.posterUrl = DEFAULT_FALLBACK_POSTER }
 
+//
 async function submitForm(type: 'draft' | 'review') {
   if (!formRef.value || isSubmitting.value) return
   if (type === 'review' && originalStatus.value === 'CANCELLED') {

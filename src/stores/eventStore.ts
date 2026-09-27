@@ -49,6 +49,32 @@ interface RawEventRow {
   rating_count?: number | null
 }
 
+//If the event ended
+function hasEventEnded(eventDate: string, endTime: string): boolean {
+  // 没有日期或结束时间，就先认为活动没有结束
+  if (!eventDate || !endTime) {
+    return false
+  }
+
+  // 拼成完整时间，例如：2026-09-28T18:30:00
+  const fullEndTime = eventDate + 'T' + endTime.slice(0, 8)
+
+  // 转换成 JavaScript 能比较的日期
+  const eventEnd = new Date(fullEndTime)
+
+  // 如果时间格式有问题，就先认为活动没有结束
+  if (isNaN(eventEnd.getTime())) {
+    return false
+  }
+  const currentTime = new Date()
+  // 活动结束时间早于或等于现在，说明活动已经结束
+  if (eventEnd <= currentTime) {
+    return true
+  }
+
+  return false
+}
+
 function messageFrom(error: unknown, fallback: string): string {
   if (error && typeof error === 'object' && 'message' in error) return String(error.message)
   return fallback
@@ -411,6 +437,7 @@ export const useEventStore = defineStore('event', () => {
   /**
    * Real Supabase Event Update (Modifies Existing Event instead of inserting new)
    */
+
   async function updateEventInSupabase(
     eventId: string,
     eventPayload: {
@@ -601,13 +628,34 @@ export const useEventStore = defineStore('event', () => {
             const regCount = item.registered_count || 0
             const cap = item.capacity || 100
 
-            let statusStr = (item.status ? item.status.toUpperCase() : 'OPEN') as EventStatus
-            if (cancelledEventIds.value.has(item.id) || item.status?.toLowerCase() === 'cancelled') {
+            let statusStr = (
+              item.status ? item.status.toUpperCase() : 'OPEN'
+            ) as EventStatus
+
+            const databaseStatus = item.status?.toLowerCase()
+            const eventHasEnded = hasEventEnded(
+              item.event_date,
+              item.end_time,
+            )
+
+            if (
+              cancelledEventIds.value.has(item.id) ||
+              databaseStatus === 'cancelled'
+            ) {
               statusStr = 'CANCELLED'
-            } else if (item.status?.toLowerCase() === 'published') {
-              if (regCount >= cap) statusStr = 'WAITLIST'
-              else if (regCount >= cap * 0.8) statusStr = 'FILLING_FAST'
-              else statusStr = 'OPEN'
+            } else if (
+              databaseStatus === 'completed' ||
+              (databaseStatus === 'published' && eventHasEnded)
+            ) {
+              statusStr = 'COMPLETED'
+            } else if (databaseStatus === 'published') {
+              if (regCount >= cap) {
+                statusStr = 'WAITLIST'
+              } else if (regCount >= cap * 0.8) {
+                statusStr = 'FILLING_FAST'
+              } else {
+                statusStr = 'OPEN'
+              }
             }
 
           return {
@@ -706,6 +754,7 @@ export const useEventStore = defineStore('event', () => {
         }
     }
 
+    //delete this data from the Pinia, same event
     events.value = events.value.filter((event) => event.id !== eventId)
     delete eventAttendeesMap.value[eventId]
     return { success: true }
@@ -808,13 +857,14 @@ export const useEventStore = defineStore('event', () => {
   }
 
   async function toggleCheckIn(eventId: string, attendeeId: string) {
+    //Find the list of Attendees
     const list = eventAttendeesMap.value[eventId]
     if (!list) return
     const target = list.find((a) => a.id === attendeeId)
     if (target) {
       const newStatus = target.status === 'CHECKED_IN' ? 'REGISTERED' : 'CHECKED_IN'
       target.status = newStatus
-      
+
       if (supabase && import.meta.env.VITE_SUPABASE_URL) {
         const dbStatus = newStatus === 'CHECKED_IN' ? 'attended' : 'pending'
         await supabase
