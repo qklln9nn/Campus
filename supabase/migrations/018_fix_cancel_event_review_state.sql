@@ -109,6 +109,20 @@ begin
       'Editing an approved event requires resubmission';
   end if;
 
+  -- An organiser may complete an event only after its end time.
+  if old.status = 'published'
+    and new.status = 'completed'
+    and (
+      old.event_date > (now() at time zone 'Pacific/Auckland')::date
+      or (
+        old.event_date = (now() at time zone 'Pacific/Auckland')::date
+        and old.end_time > (now() at time zone 'Pacific/Auckland')::time
+      )
+    ) then
+    raise exception
+      'An event cannot be completed before its end time';
+  end if;
+
   if new.status is distinct from old.status
     and not (
       (
@@ -121,7 +135,7 @@ begin
       )
       or (
         old.status = 'published'
-        and new.status in ('pending', 'cancelled')
+        and new.status in ('pending', 'cancelled', 'completed')
       )
       or (
         old.status = 'rejected'
