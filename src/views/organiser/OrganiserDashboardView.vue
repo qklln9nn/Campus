@@ -21,6 +21,7 @@
       </dl>
 
       <section class="events-panel" aria-label="Your events">
+        <!-- event list 顶部分类标签栏 -->
         <div class="list-tools">
           <div class="status-filters" aria-label="Filter by status">
             <button v-for="tab in statusTabs" :key="tab.value" type="button"
@@ -30,6 +31,8 @@
               {{ tab.label }} <span>{{ countStatus(tab.value) }}</span>
             </button>
           </div>
+
+          <!-- search bar -->
           <div class="search-tools">
             <el-input v-model="search" clearable placeholder="Search your events" aria-label="Search your events">
               <template #prefix><el-icon><Search /></el-icon></template>
@@ -52,7 +55,8 @@
               <div class="event-info">
               <div class="event-labels"><span>{{ event.category }}</span><span class="status-label" :data-status="event.status">{{ statusLabel(event.status) }}</span></div>
               <h2>{{ event.title }}</h2>
-              <p>{{ event.startTime }}</p>
+              <p>By: {{ authStore.currentUser?.name }}</p>
+              <p>{{ event.startTime }} - {{ event.endTime }}</p>
               <p>{{ event.location }}</p>
               <div class="attendance-counts"><strong>{{ event.registeredCount }} / {{ event.capacity }}</strong> registered <span>· {{ event.waitlistCount }} waitlisted</span></div>
             </div>
@@ -165,9 +169,9 @@
               <el-table-column prop="registeredAt" label="Registered on" min-width="180" />
               <el-table-column v-if="attendeeTab === 'registered'" label="Actions" min-width="120">
                 <template #default="scope">
-                  <el-button 
-                    size="small" 
-                    :type="scope.row.status === 'CHECKED_IN' ? 'success' : 'default'" 
+                  <el-button
+                    size="small"
+                    :type="scope.row.status === 'CHECKED_IN' ? 'success' : 'default'"
                     @click="eventStore.toggleCheckIn(selectedId, scope.row.id)"
                   >
                     {{ scope.row.status === 'CHECKED_IN' ? 'Checked In' : 'Check In' }}
@@ -207,27 +211,44 @@ const drawerOpen = ref(false)
 const selectedId = ref('')
 const attendeeTab = ref('registered')
 
+
+// ============== status label in Event Card ==================
+const statusLabels: Record<EventStatus, string> = {
+  OPEN: 'Published',
+  FILLING_FAST: 'Filling fast',
+  WAITLIST: 'Waitlist open',
+  DRAFT: 'Draft',
+  PENDING: 'Pending review',
+  REJECTED: 'Rejected',
+  CANCELLED: 'Cancelled',
+  CLOSED: 'Closed',
+  COMPLETED: 'Completed',
+}
+function statusLabel(status: EventStatus) {
+  return statusLabels[status] || status
+}
+
+
+//Filter logic for top status bar
+//Classify the status of the event into five catagories
 //Top status category bar
 const statusTabs = [
   { value: 'all', label: 'All' },
   { value: 'published', label: 'Published' },
   { value: 'pending', label: 'Pending' },
   { value: 'draft', label: 'Drafts' },
-  { value: 'other', label: 'Other' },
+  { value: 'cancelled', label: 'Cancelled'},
+  { value: 'completed', label: 'Completed'},
+  { value: 'other', label: 'Other'}
 ]
-const statusLabels: Record<EventStatus, string> = {
-  OPEN: 'Published', FILLING_FAST: 'Filling fast', WAITLIST: 'Waitlist open',
-  DRAFT: 'Draft', PENDING: 'Pending review', REJECTED: 'Rejected',
-  CANCELLED: 'Cancelled', CLOSED: 'Closed', COMPLETED: 'Completed',
-}
-function statusLabel(status: EventStatus) { return statusLabels[status] || status }
 
-//Filter logic for top status bar
-//Classify the status of the event into five catagories
 function statusGroup(status: EventStatus) {
-  if (['OPEN', 'FILLING_FAST', 'WAITLIST'].includes(status)) return 'published'
+  if (['OPEN', 'FILLING_FAST', 'WAITLIST'].includes(status))
+      return 'published'
   if (status === 'PENDING') return 'pending'
   if (status === 'DRAFT') return 'draft'
+  if (status === 'CANCELLED') return 'cancelled'
+  if (status === 'COMPLETED') return 'completed'
   return 'other'
 }
 
@@ -252,12 +273,18 @@ function countStatus(status: string) {
   return ownEvents.value.filter(event => status === 'all' || statusGroup(event.status) === status).length
 }
 
-// Filter the events based on the search query and status filter
+// <Search the key word>
 const filteredEvents = computed(() => {
   const query = search.value.trim().toLowerCase()
   return ownEvents.value.filter(event =>
     (statusFilter.value === 'all' || statusGroup(event.status) === statusFilter.value) &&
-    [event.title, event.location, event.category].some(value => value.toLowerCase().includes(query)),
+    [event.title,
+     event.location,
+     event.category,
+     event.organiser.name,
+     event.description,
+     event.startTime,
+     event.endTime,].some(value => value.toLowerCase().includes(query)),
   )
 })
 //分页逻辑
