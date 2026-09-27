@@ -55,7 +55,8 @@
               <div class="event-info">
               <div class="event-labels"><span>{{ event.category }}</span><span class="status-label" :data-status="event.status">{{ statusLabel(event.status) }}</span></div>
               <h2>{{ event.title }}</h2>
-              <p>{{ event.startTime }}</p>
+              <p>By: {{ authStore.currentUser?.name }}</p>
+              <p>{{ event.startTime }} - {{ event.endTime }}</p>
               <p>{{ event.location }}</p>
               <div class="attendance-counts"><strong>{{ event.registeredCount }} / {{ event.capacity }}</strong> registered <span>· {{ event.waitlistCount }} waitlisted</span></div>
             </div>
@@ -168,9 +169,9 @@
               <el-table-column prop="registeredAt" label="Registered on" min-width="180" />
               <el-table-column v-if="attendeeTab === 'registered'" label="Actions" min-width="120">
                 <template #default="scope">
-                  <el-button 
-                    size="small" 
-                    :type="scope.row.status === 'CHECKED_IN' ? 'success' : 'default'" 
+                  <el-button
+                    size="small"
+                    :type="scope.row.status === 'CHECKED_IN' ? 'success' : 'default'"
                     @click="eventStore.toggleCheckIn(selectedId, scope.row.id)"
                   >
                     {{ scope.row.status === 'CHECKED_IN' ? 'Checked In' : 'Check In' }}
@@ -236,7 +237,9 @@ const statusTabs = [
   { value: 'published', label: 'Published' },
   { value: 'pending', label: 'Pending' },
   { value: 'draft', label: 'Drafts' },
-  { value: 'other', label: 'Other' },
+  { value: 'cancelled', label: 'Cancelled'},
+  { value: 'completed', label: 'Completed'},
+  { value: 'other', label: 'Other'}
 ]
 
 function statusGroup(status: EventStatus) {
@@ -244,6 +247,8 @@ function statusGroup(status: EventStatus) {
       return 'published'
   if (status === 'PENDING') return 'pending'
   if (status === 'DRAFT') return 'draft'
+  if (status === 'CANCELLED') return 'cancelled'
+  if (status === 'COMPLETED') return 'completed'
   return 'other'
 }
 
@@ -268,12 +273,18 @@ function countStatus(status: string) {
   return ownEvents.value.filter(event => status === 'all' || statusGroup(event.status) === status).length
 }
 
-// Filter the events based on the search query and status filter
+// <Search the key word>
 const filteredEvents = computed(() => {
   const query = search.value.trim().toLowerCase()
   return ownEvents.value.filter(event =>
     (statusFilter.value === 'all' || statusGroup(event.status) === statusFilter.value) &&
-    [event.title, event.location, event.category].some(value => value.toLowerCase().includes(query)),
+    [event.title,
+     event.location,
+     event.category,
+     event.organiser.name,
+     event.description,
+     event.startTime,
+     event.endTime,].some(value => value.toLowerCase().includes(query)),
   )
 })
 //分页逻辑
