@@ -584,16 +584,20 @@ const myRating = ref(0)
 
 async function submitMyRating(val: number) {
   if (val === 0) return
-  hasRated.value = true
-  localStorage.setItem(`rated_${props.event.id}`, 'true')
-
-  props.event.ratingSum = (props.event.ratingSum || 0) + val
-  props.event.ratingCount = (props.event.ratingCount || 0) + 1
-
+  
   try {
-    await supabase.rpc('submit_event_rating', { p_event_id: props.event.id, p_rating: val })
+    const { error } = await supabase.rpc('submit_event_rating', { p_event_id: props.event.id, p_rating: val })
+    if (error) throw error
+    
+    // Only update UI if the RPC succeeded
+    hasRated.value = true
+    localStorage.setItem(`rated_${props.event.id}`, 'true')
+    
+    props.event.ratingSum = (props.event.ratingSum || 0) + val
+    props.event.ratingCount = (props.event.ratingCount || 0) + 1
   } catch (error) {
     console.error('Failed to submit rating', error)
+    ElMessage.error(error instanceof Error ? error.message : typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'Failed to submit rating')
   }
 }
 
