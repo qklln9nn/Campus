@@ -419,9 +419,7 @@ const userRegisteredCount = computed(() =>
     const validDate = eventPayload.date && eventPayload.date.length >= 8 ? eventPayload.date : '2026-11-01'
     const generatedId = generateValidUUID()
 
-    const safeImageUrl = eventPayload.posterUrl.startsWith('data:image/')
-      ? 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=900&q=80'
-      : eventPayload.posterUrl.slice(0, 500)
+    const safeImageUrl = eventPayload.posterUrl.trim()
 
     try {
       const { data: dbData, error: dbErr } = await supabase
@@ -526,9 +524,7 @@ const userRegisteredCount = computed(() =>
       }
     }
 
-    const safeImageUrl = eventPayload.posterUrl.startsWith('data:image/')
-      ? 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=900&q=80'
-      : eventPayload.posterUrl.slice(0, 500)
+    const safeImageUrl = eventPayload.posterUrl.trim()
 
     if (supabase && import.meta.env.VITE_SUPABASE_URL) {
       try {
