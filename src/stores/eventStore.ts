@@ -167,9 +167,15 @@ export const useEventStore = defineStore('event', () => {
   })
 
   // Registered Count Stats
-  const userRegisteredCount = computed(
-    () => events.value.filter((e) => e.isRegistered).length,
-  )
+const userRegisteredCount = computed(() =>
+  events.value.filter(
+    (event) =>
+      event.isRegistered &&
+      ['OPEN', 'FILLING_FAST', 'WAITLIST'].includes(
+        event.status,
+      ),
+  ).length,
+)
   const userWaitlistedCount = computed(
     () => events.value.filter((e) => e.isWaitlisted).length,
   )
@@ -182,6 +188,7 @@ export const useEventStore = defineStore('event', () => {
 
   // Actions
   // Actions: Persistent Bookmarking in Supabase
+  // The store reverses isBookmarked to determine whether the student is saving or removing the event.
   async function toggleBookmark(eventId: string) {
     const event = events.value.find((e) => e.id === eventId)
     if (!event) return
@@ -197,12 +204,16 @@ export const useEventStore = defineStore('event', () => {
 
     try {
       if (willBookmark) {
-        const { error } = await supabase.from('saved_events').insert({
+        //Add this event into the 'save_events' table
+        const { error } = await supabase
+        .from('saved_events')
+        .insert({
           student_id: userId,
           event_id: eventId,
         })
         if (error) throw error
       } else {
+        //detele this event into the 'save_events' table
         const { error } = await supabase
           .from('saved_events')
           .delete()
@@ -262,6 +273,8 @@ export const useEventStore = defineStore('event', () => {
       event.status = 'WAITLIST'
     }
 
+    //【Student Registration and Waitlist】
+    // The store inserts a record into the registrations table through Supabase.
     const { data, error } = await supabase
       .from('registrations')
       .insert({
@@ -297,6 +310,7 @@ export const useEventStore = defineStore('event', () => {
   }
 
   // Actions: Persistent Cancel Registration in Supabase
+  // Optimistically remove the student's registration
   async function cancelRegistration(eventId: string) {
     const event = events.value.find((e) => e.id === eventId)
     if (!event) return
@@ -307,6 +321,7 @@ export const useEventStore = defineStore('event', () => {
       throw new Error('Please sign in first.')
     }
 
+    //.1 Store save the info first
     const snapshot = {
       registeredCount: event.registeredCount,
       waitlistCount: event.waitlistCount,
@@ -315,6 +330,7 @@ export const useEventStore = defineStore('event', () => {
       status: event.status,
     }
 
+    //.2 Cancel the idRegistraed or waitlisted
     if (event.isRegistered) {
       event.isRegistered = false
       event.registeredCount = Math.max(0, event.registeredCount - 1)
@@ -326,14 +342,16 @@ export const useEventStore = defineStore('event', () => {
       event.waitlistCount = Math.max(0, event.waitlistCount - 1)
     }
 
-const { error } = await supabase.rpc(
-  'cancel_own_registration',
-  {
-    p_event_id: eventId,
-  },
-)
+    //.3 Store calls the RPC
+    const { error } = await supabase.rpc(
+      'cancel_own_registration',
+      {
+        p_event_id: eventId,
+      },
+    )
 
     if (error) {
+      //.4 if the database falls, it will restore the original page.
       Object.assign(event, snapshot)
       throw new Error(error.message)
     }
@@ -664,7 +682,7 @@ const { error } = await supabase.rpc(
 
             existingPromos.unshift({
               id: `promo-${promotedId}-${Date.now()}`,
-              title: '🎉 Spot Confirmed (Waitlist Promoted)',
+              title: 'Spot Confirmed (Waitlist Promoted)',
               message: `Great news! You have been moved off the waitlist and confirmed for "${eventTitle}".`,
               time: 'Just now',
               type: 'promotion',
@@ -672,7 +690,7 @@ const { error } = await supabase.rpc(
             })
 
             ElNotification({
-              title: '🎉 Spot Confirmed!',
+              title: 'Spot Confirmed!',
               message: `Great news! A spot opened up and you were promoted from the waitlist for "${eventTitle}". Your seat is now confirmed!`,
               type: 'success',
               duration: 9000,

@@ -35,7 +35,10 @@
 
   <el-row v-if="recommendedEvents.length > 0" :gutter="28">
     <el-col v-for="event in recommendedEvents" :key="event.id" :xs="24" :sm="12" :md="8">
-      <EventCard :event="event" @register-event="openRegistrationDialog" @cancel-registration="handleCancelRegistration" @toggle-bookmark="handleToggleBookmark" />
+      <EventCard :event="event"
+      @register-event="openRegistrationDialog"
+      @cancel-registration="handleCancelRegistration"
+      @toggle-bookmark="handleToggleBookmark" />
     </el-col>
   </el-row>
 </div>
@@ -515,6 +518,8 @@ function onRegistrationPosterError(event: Event) {
   handlePosterError(event, selectedEvent.value?.category)
 }
 
+
+// DashboardView receives the event ID and passes it to eventStore.toggleBookmark.
 async function handleToggleBookmark(eventId: string) {
   try {
     await eventStore.toggleBookmark(eventId)
@@ -522,6 +527,7 @@ async function handleToggleBookmark(eventId: string) {
     ElMessage.error(error instanceof Error ? error.message : 'Unable to update saved event.')
   }
 }
+
 
 async function confirmRegistration() {
   if (!selectedEvent.value) return
@@ -557,6 +563,8 @@ async function confirmRegistration() {
 }
 
 // Handle Cancel Registration Confirmation
+//Student Cancel Flow
+//Dialog to comfirm the choice
 function handleCancelRegistration(eventId: string) {
   const event = eventStore.events.find((e: EventItem) => e.id === eventId)
   if (!event) return
@@ -574,6 +582,8 @@ function handleCancelRegistration(eventId: string) {
   )
     .then(async () => {
       try {
+        //When the student confirms,:
+        // DashboardView asks for confirmation and then passes the event ID to eventStore.
         await eventStore.cancelRegistration(eventId)
         ElMessage({
           type: 'info',
