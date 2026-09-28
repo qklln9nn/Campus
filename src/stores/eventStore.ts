@@ -132,6 +132,7 @@ export const useEventStore = defineStore('event', () => {
   // It checks visibility, the selected tab, category and search text,
   // and updates automatically whenever those values change.
   const filteredEvents = computed(() => {
+    //filteredEvents is a computed property that combines visibility, active tab, category, and search text.
     return events.value.filter((event) => {
       const st = (event.status as string || '').toLowerCase()
       if (!['published', 'completed', 'open', 'filling_fast', 'waitlist'].includes(st)) return false
@@ -140,6 +141,7 @@ export const useEventStore = defineStore('event', () => {
       if (activeTab.value === 'registered' && (!event.isRegistered|| event.status === 'COMPLETED' )) return false
       if (activeTab.value === 'waitlisted' && !event.isWaitlisted) return false
       if (activeTab.value === 'saved' && !event.isBookmarked) return false
+      // The Completed Events tab only shows completed events for which the current student has a confirmed registration.
       if (activeTab.value === 'completed' && (!event.isRegistered || event.status !== 'COMPLETED')) return false
 
 
@@ -638,6 +640,8 @@ const userRegisteredCount = computed(() =>
 
         // Read previously tracked waitlisted events for this user to detect promotions
         const trackedWlKey = `user_wl_${currentUserId}`
+        //Save the last registration ID in waitlist
+
         let trackedWlIds: string[] = []
         try {
           trackedWlIds = JSON.parse(localStorage.getItem(trackedWlKey) || '[]')
@@ -648,40 +652,60 @@ const userRegisteredCount = computed(() =>
         const currentWlIds: string[] = []
         const newlyPromotedEventIds: string[] = []
 
+        // Compare registration status when fetching data
         if (regs) {
+          // Go through every user registration record
           regs.forEach((r) => {
+            // This record status: already registered successfully
             if (r.status === 'registered') {
+              // Save this event id into registered list
               userRegSet.add(r.event_id)
+
+              // Check: last time this event was in waitlist
               if (trackedWlIds.includes(r.event_id)) {
+                // Add to promotion list: user got out of waitlist
                 newlyPromotedEventIds.push(r.event_id)
               }
             }
+
+            // This record status: on waitlist, waiting for vacancy
             if (r.status === 'waitlisted') {
+              // Save id to waitlist list
               userWaitlistSet.add(r.event_id)
+              // Record current waitlist id for next time comparison
               currentWlIds.push(r.event_id)
             }
           })
         }
 
-        // Update tracked waitlisted IDs for current student
+        // Save current waitlist ids to browser local storage
+        // Next time we load page, use this old list to compare changes
         localStorage.setItem(trackedWlKey, JSON.stringify(currentWlIds))
 
-        // If any event was promoted from waitlist to registered, notify the user and store in persistent notifications!
+        // If any user moved from waitlist to registered, show alert and save notification
         if (newlyPromotedEventIds.length > 0) {
           const promoKey = `user_promotions_${currentUserId}`
+          // Array to store old notification messages
           let existingPromos: any[] = []
+
           try {
+            // Read saved messages, empty list if nothing saved
             existingPromos = JSON.parse(localStorage.getItem(promoKey) || '[]')
           } catch {
+            // If data broken, reset to empty list
             existingPromos = []
           }
 
+          // Loop every event that just got promoted
           newlyPromotedEventIds.forEach((promotedId) => {
+            // Find event info by event id
             const rawEvent = (data as RawEventRow[] | null)?.find((e) => e.id === promotedId)
+            // Get event name, use default text if not found
             const eventTitle = rawEvent?.title || 'a campus event'
 
+            // Create new notification, put new message at the top
             existingPromos.unshift({
-              id: `promo-${promotedId}-${Date.now()}`,
+              id: `promo-${promotedId}-${Date.now()}`, // unique id for this notification
               title: 'Spot Confirmed (Waitlist Promoted)',
               message: `Great news! You have been moved off the waitlist and confirmed for "${eventTitle}".`,
               time: 'Just now',
@@ -689,17 +713,21 @@ const userRegisteredCount = computed(() =>
               timestamp: Date.now(),
             })
 
+            // Pop up message box on top right of screen
             ElNotification({
               title: 'Spot Confirmed!',
               message: `Great news! A spot opened up and you were promoted from the waitlist for "${eventTitle}". Your seat is now confirmed!`,
               type: 'success',
-              duration: 9000,
+              duration: 9000, // auto close after 9 seconds
               position: 'top-right',
             })
           })
 
+          // Keep only latest 15 messages, avoid saving too many
+          // Save updated messages back into browser storage
           localStorage.setItem(promoKey, JSON.stringify(existingPromos.slice(0, 15)))
         }
+
 
         //Saved events are stored in the saved_events table.
         //I load the current student’s saved event IDs and merge them into the event objects.
@@ -730,10 +758,8 @@ const userRegisteredCount = computed(() =>
             ) as EventStatus
 
             const databaseStatus = item.status?.toLowerCase()
-            const eventHasEnded = hasEventEnded(
-              item.event_date,
-              item.end_time,
-            )
+            //Convert an ended event to COMPLETED
+            const eventHasEnded = hasEventEnded(item.event_date,item.end_time,)
 
             if (
               cancelledEventIds.value.has(item.id) ||
@@ -741,9 +767,11 @@ const userRegisteredCount = computed(() =>
             ) {
               statusStr = 'CANCELLED'
             } else if (
+              //make the statu 'COMPLETED'
               databaseStatus === 'completed' ||
               (databaseStatus === 'published' && eventHasEnded)
             ) {
+              // A published event that has ended is displayed as COMPLETED.
               statusStr = 'COMPLETED'
             } else if (databaseStatus === 'published') {
               if (regCount >= cap) {
@@ -789,6 +817,7 @@ const userRegisteredCount = computed(() =>
             isRegistered: userRegSet.has(item.id),
             isWaitlisted: userWaitlistSet.has(item.id),
             isBookmarked: userSavedSet.has(item.id),
+            //Fetch the data for the rating
             ratingSum: item.rating_sum || 0,
             ratingCount: item.rating_count || 0,
           }
@@ -979,6 +1008,7 @@ const userRegisteredCount = computed(() =>
   let activeRealtimeUserId: string | null = null
 
   function setupRealtimeRegistrations(userId: string) {
+    //Listen for registration changes
     if (!supabase || activeRealtimeUserId === userId) return
     activeRealtimeUserId = userId
 
@@ -990,10 +1020,12 @@ const userRegisteredCount = computed(() =>
           {
             event: '*',
             schema: 'public',
+            //focus on the 'registration' and 'student_id'
             table: 'registrations',
             filter: `student_id=eq.${userId}`,
           },
           () => {
+            //When the registration has changes, fetch the data (重新加载数据)
             void fetchEventsFromSupabase()
           },
         )

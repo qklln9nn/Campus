@@ -166,6 +166,7 @@ export const useModerationStore = defineStore('moderation', () => {
   }
 
   async function submitReport(
+    //Fetch the ueser id and connect with backend
     eventId: string,
     reason: string,
     description: string,
@@ -176,7 +177,10 @@ export const useModerationStore = defineStore('moderation', () => {
       if (userError) throw userError
       if (!data.user) throw new Error('Please sign in before reporting an event.')
 
-      const { error } = await supabase.from('reports').insert({
+      const { error } = await supabase
+      //Inserts the report into the reports table. And the SQL do the next.
+      .from('reports')
+      .insert({
         reporter_id: data.user.id,
         event_id: eventId,
         reason: reason.trim(),
@@ -227,6 +231,7 @@ export const useModerationStore = defineStore('moderation', () => {
   }
 
   async function moderateReport(
+
     reportId: string,
     resolution: Exclude<ReportStatus, 'pending'>,
     takeDownEvent = false,
