@@ -1,4 +1,7 @@
 <template>
+    <!-- StudentLayout is the shared shell for student pages.
+   It contains the header, search bar and sidebar,
+   while DashboardView provides the main event content through the slot. -->
   <StudentLayout>
     <div class="dashboard-page">
 <header class="page-header">
@@ -25,7 +28,7 @@
       Generate Suggestions
     </el-button>
   </div>
-  
+
   <p v-if="aiReason" style="margin: 0 0 16px 0; color: #475569; font-size: 14px; font-style: italic;">
     "{{ aiReason }}"
   </p>
@@ -65,7 +68,7 @@
       <el-option label="Most popular" value="popular" />
       <el-option label="Available seats" value="seats" />
     </el-select>
-    
+
     <el-radio-group v-model="viewMode" class="filter-select">
       <el-radio-button value="list">List</el-radio-button>
       <el-radio-button value="calendar">Calendar</el-radio-button>
@@ -94,9 +97,14 @@
                     v-for="event in getEventsForDate(data.day)"
                     :key="event.id"
                     class="calendar-event-item"
-                    @click.stop="openRegistrationDialog(event)"
+                    @click.stop="handleCalendarEventClick(event)"
                   >
-                    <el-tag size="small" disable-transitions class="calendar-tag">
+                    <el-tag
+                      size="small"
+                      disable-transitions
+                      class="calendar-tag"
+                      :type="event.isRegistered ? 'success' : (event.isWaitlisted ? 'warning' : 'info')"
+                    >
                       {{ event.title }}
                     </el-tag>
                   </div>
@@ -104,6 +112,18 @@
               </div>
             </template>
           </el-calendar>
+
+          <!-- Hidden EventCard instance for calendar event detail modal -->
+          <div style="display: none;">
+            <EventCard
+              v-if="calendarSelectedEvent"
+              ref="calendarEventCardRef"
+              :event="calendarSelectedEvent"
+              @register-event="openRegistrationDialog"
+              @cancel-registration="handleCancelRegistration"
+              @toggle-bookmark="handleToggleBookmark"
+            />
+          </div>
         </div>
 
         <template v-else>
@@ -234,7 +254,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import StudentLayout from '@/layouts/StudentLayout.vue'
 import EventCard from '@/components/EventCard.vue'
 import { useEventStore } from '@/stores/eventStore'
@@ -244,6 +264,7 @@ import type { EventItem } from '@/types/event'
 import { Refresh, Calendar, Location, User, MagicStick } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
+import { isEventRegistrationOpen } from '@/lib/eventRegistration'
 import { supabase } from '@/lib/supabase'
 
 const eventStore = useEventStore()
@@ -266,7 +287,7 @@ async function generateRecommendations() {
       clubs: authStore.currentUser.clubs || [],
       availableTime: authStore.currentUser.availableTime || []
     }
-    
+
     const upcoming = sortedEvents.value.slice(0, 20).map(e => ({
       id: e.id,
       title: e.title,
@@ -278,9 +299,9 @@ async function generateRecommendations() {
     const { data, error } = await supabase.functions.invoke('ai-recommendation', {
       body: { profile, events: upcoming }
     })
-    
+
     if (error) throw error
-    
+
     if (data && data.recommendedIds) {
       recommendedEvents.value = eventStore.events.filter(e => data.recommendedIds.includes(e.id))
       aiReason.value = data.reason
@@ -293,12 +314,19 @@ async function generateRecommendations() {
   }
 }
 
+// Dashboard initialises its data
+//When the dashboard mounts
+// I reset the previous filters and load events and categories in parallel
 onMounted(() => {
+  //reset the searchQuery and selectedCategory and tab
   eventStore.searchQuery = ''
   eventStore.selectedCategory = 'All'
   eventStore.activeTab = 'all'
+  //fetch data () use Promise.allSettled so one failed request does not stop the other one.
   void Promise.allSettled([
+    //
     eventStore.fetchEventsFromSupabase(),
+    //
     categoryStore.fetchCategories(),
   ])
 })
@@ -309,10 +337,25 @@ const currentPage = ref(1)
 const pageSize = ref(9)
 
 const viewMode = ref<'list' | 'calendar'>('list')
+const calendarSelectedEventId = ref<string | null>(null)
+const calendarEventCardRef = ref<InstanceType<typeof EventCard> | null>(null)
+
+const calendarSelectedEvent = computed(() => {
+  if (!calendarSelectedEventId.value) return null
+  return eventStore.events.find((e) => e.id === calendarSelectedEventId.value) || null
+})
+
 function getEventsForDate(dateStr: string) {
   return sortedEvents.value.filter(
     (e) => e.startsAt?.split('T')[0] === dateStr
   )
+}
+
+function handleCalendarEventClick(event: EventItem) {
+  calendarSelectedEventId.value = event.id
+  nextTick(() => {
+    calendarEventCardRef.value?.openDetails()
+  })
 }
 
 // Registration Modal State
@@ -330,22 +373,128 @@ const hasActiveFilter = computed(() => {
 })
 
 // Sorted Events based on criteria
-const sortedEvents = computed(() => {
-  const list = [...eventStore.filteredEvents]
-  if (sortBy.value === 'popular') {
-    list.sort((a, b) => b.registeredCount - a.registeredCount)
-  } else if (sortBy.value === 'seats') {
-    list.sort((a, b) => (a.capacity - a.registeredCount) - (b.capacity - b.registeredCount))
+function getStartTimestamp(event: EventItem): number {
+  if (!event.startsAt) {
+    return Number.POSITIVE_INFINITY
   }
+
+  const timestamp = new Date(event.startsAt).getTime()
+
+  return Number.isNaN(timestamp)
+    ? Number.POSITIVE_INFINITY
+    : timestamp
+}
+
+function getOccupancyRate(event: EventItem): number {
+  if (event.capacity <= 0) return 0
+
+  return event.registeredCount / event.capacity
+}
+
+
+//The store decides which events are visible,
+// while the dashboard controls their order and pagination. T
+// his keeps filtering and presentation responsibilities separate.
+const sortedEvents = computed(() => {
+  let list = [...eventStore.filteredEvents]
+//======upcoimg sort=========
+  if (sortBy.value === 'upcoming') {
+    const now = Date.now()
+
+    list.sort((a, b) => {
+      const aTime = getStartTimestamp(a)
+      const bTime = getStartTimestamp(b)
+
+      const aIsPast = aTime < now
+      const bIsPast = bTime < now
+
+      // Future events appear before past events.
+      if (aIsPast !== bIsPast) {
+        return aIsPast ? 1 : -1
+      }
+
+      // Future events: nearest first.
+      if (!aIsPast) {
+        return aTime - bTime
+      }
+
+      // Past events: most recent first.
+      return bTime - aTime
+    })
+  }
+////======popular sort=========
+  if (sortBy.value === 'popular') {
+    // Only keep events that are still open for registration.
+    list = list.filter((event) =>
+      isEventRegistrationOpen(event),
+    )
+
+    list.sort((a, b) => {
+      const rateDifference =
+        getOccupancyRate(b) -
+        getOccupancyRate(a)
+
+      // Higher occupancy rate appears first.
+      if (rateDifference !== 0) {
+        return rateDifference
+      }
+
+      // Same occupancy rate: earlier event first.
+      return (
+        getStartTimestamp(a) -
+        getStartTimestamp(b)
+      )
+    })
+  }
+////======seats sort=========
+  if (sortBy.value === 'seats') {
+    // Only keep events that are still open for registration.
+    list = list.filter((event) =>
+      isEventRegistrationOpen(event),
+    )
+
+    list.sort((a, b) => {
+      const aIsFull =
+        a.registeredCount >= a.capacity
+
+      const bIsFull =
+        b.registeredCount >= b.capacity
+
+      // Events with available seats appear first.
+      if (aIsFull !== bIsFull) {
+        return aIsFull ? 1 : -1
+      }
+
+      // Within each group, earlier event appears first.
+      return (
+        getStartTimestamp(a) -
+        getStartTimestamp(b)
+      )
+    })
+  }
+
   return list
 })
 
-// Paginated slice
+// ===============Paginated slice================
 const displayedEvents = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
   return sortedEvents.value.slice(start, end)
 })
+
+watch(
+  [
+    () => eventStore.searchQuery,
+    () => eventStore.selectedCategory,
+    () => eventStore.activeTab,
+    sortBy,
+    pageSize,
+  ],
+  () => {
+    currentPage.value = 1
+  },
+)
 
 // Reset filters action
 function resetFilters() {

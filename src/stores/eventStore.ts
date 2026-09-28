@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { ElNotification } from 'element-plus'
 import { supabase } from '@/lib/supabase'
 import { isEventRegistrationOpen } from '@/lib/eventRegistration'
 import { categoryLabel, categorySlug } from '@/lib/category'
@@ -124,18 +125,23 @@ export const useEventStore = defineStore('event', () => {
   // Filter and Search state
   const searchQuery = ref('')
   const selectedCategory = ref<CategoryType | 'All'>('All')
-  const activeTab = ref<'all' | 'registered' | 'waitlisted' | 'saved'>('all')
+  const activeTab = ref<'all' | 'registered' | 'waitlisted' | 'saved'| 'completed'>('all')
 
   // Student-facing lists only expose events that passed moderation.
+  // Event filtering is handled by a computed property in the Pinia store.
+  // It checks visibility, the selected tab, category and search text,
+  // and updates automatically whenever those values change.
   const filteredEvents = computed(() => {
     return events.value.filter((event) => {
       const st = (event.status as string || '').toLowerCase()
       if (!['published', 'completed', 'open', 'filling_fast', 'waitlist'].includes(st)) return false
 
       // Tab filter
-      if (activeTab.value === 'registered' && !event.isRegistered) return false
+      if (activeTab.value === 'registered' && (!event.isRegistered|| event.status === 'COMPLETED' )) return false
       if (activeTab.value === 'waitlisted' && !event.isWaitlisted) return false
       if (activeTab.value === 'saved' && !event.isBookmarked) return false
+      if (activeTab.value === 'completed' && (!event.isRegistered || event.status !== 'COMPLETED')) return false
+
 
       // Category filter (Case-insensitive matching)
       if (selectedCategory.value !== 'All') {
@@ -170,6 +176,9 @@ export const useEventStore = defineStore('event', () => {
   const userBookmarkedCount = computed(
     () => events.value.filter((e) => e.isBookmarked).length,
   )
+  const userCompletedCount = computed(
+  () => events.value.filter((e) => e.isRegistered && e.status === 'COMPLETED').length,
+)
 
   // Actions
   // Actions: Persistent Bookmarking in Supabase
@@ -317,11 +326,12 @@ export const useEventStore = defineStore('event', () => {
       event.waitlistCount = Math.max(0, event.waitlistCount - 1)
     }
 
-    const { error } = await supabase
-      .from('registrations')
-      .delete()
-      .eq('event_id', eventId)
-      .eq('student_id', userId)
+const { error } = await supabase.rpc(
+  'cancel_own_registration',
+  {
+    p_event_id: eventId,
+  },
+)
 
     if (error) {
       Object.assign(event, snapshot)
@@ -571,41 +581,110 @@ export const useEventStore = defineStore('event', () => {
   /**
    * Fetch Events dynamically from Supabase & merge registrations/saved state
    */
+  //The frontend requests event records from Supabase.
+  // Even though it uses select all,
+  // Row Level Security still controls which rows the student is allowed to receive.
   async function fetchEventsFromSupabase() {
     try {
       if (!supabase || !import.meta.env.VITE_SUPABASE_URL) return
 
+      //Step 1 : get users ID
       const authStore = useAuthStore()
       const currentUserId = authStore.currentUser?.id
 
-      // 1. Fetch Events directly from Supabase events table without restrictive foreign key join requirement
+      // *Step2:  Fetch Events directly from Supabase events table without restrictive foreign key join requirement
       const { data, error } = await supabase
         .from('events')
         .select('*')
+        //order by created time
         .order('created_at', { ascending: false })
 
       if (error) {
         console.error('Supabase fetchEvents error:', error)
       }
 
-      // 2. Fetch User Registrations & Saved Bookmarks if logged in
+      // Step 3: Fetch User Registrations & Saved Bookmarks if logged in
+      //I also load the current student’s registration records.
+      // Registered event IDs and waitlisted event IDs are stored in separate sets for fast lookup.
       const userRegSet = new Set<string>()
       const userWaitlistSet = new Set<string>()
       const userSavedSet = new Set<string>()
 
       if (currentUserId) {
+        setupRealtimeRegistrations(currentUserId)
+
         const { data: regs } = await supabase
           .from('registrations')
           .select('event_id, status')
           .eq('student_id', currentUserId)
 
+        // Read previously tracked waitlisted events for this user to detect promotions
+        const trackedWlKey = `user_wl_${currentUserId}`
+        let trackedWlIds: string[] = []
+        try {
+          trackedWlIds = JSON.parse(localStorage.getItem(trackedWlKey) || '[]')
+        } catch {
+          trackedWlIds = []
+        }
+
+        const currentWlIds: string[] = []
+        const newlyPromotedEventIds: string[] = []
+
         if (regs) {
           regs.forEach((r) => {
-            if (r.status === 'registered') userRegSet.add(r.event_id)
-            if (r.status === 'waitlisted') userWaitlistSet.add(r.event_id)
+            if (r.status === 'registered') {
+              userRegSet.add(r.event_id)
+              if (trackedWlIds.includes(r.event_id)) {
+                newlyPromotedEventIds.push(r.event_id)
+              }
+            }
+            if (r.status === 'waitlisted') {
+              userWaitlistSet.add(r.event_id)
+              currentWlIds.push(r.event_id)
+            }
           })
         }
 
+        // Update tracked waitlisted IDs for current student
+        localStorage.setItem(trackedWlKey, JSON.stringify(currentWlIds))
+
+        // If any event was promoted from waitlist to registered, notify the user and store in persistent notifications!
+        if (newlyPromotedEventIds.length > 0) {
+          const promoKey = `user_promotions_${currentUserId}`
+          let existingPromos: any[] = []
+          try {
+            existingPromos = JSON.parse(localStorage.getItem(promoKey) || '[]')
+          } catch {
+            existingPromos = []
+          }
+
+          newlyPromotedEventIds.forEach((promotedId) => {
+            const rawEvent = (data as RawEventRow[] | null)?.find((e) => e.id === promotedId)
+            const eventTitle = rawEvent?.title || 'a campus event'
+
+            existingPromos.unshift({
+              id: `promo-${promotedId}-${Date.now()}`,
+              title: '🎉 Spot Confirmed (Waitlist Promoted)',
+              message: `Great news! You have been moved off the waitlist and confirmed for "${eventTitle}".`,
+              time: 'Just now',
+              type: 'promotion',
+              timestamp: Date.now(),
+            })
+
+            ElNotification({
+              title: '🎉 Spot Confirmed!',
+              message: `Great news! A spot opened up and you were promoted from the waitlist for "${eventTitle}". Your seat is now confirmed!`,
+              type: 'success',
+              duration: 9000,
+              position: 'top-right',
+            })
+          })
+
+          localStorage.setItem(promoKey, JSON.stringify(existingPromos.slice(0, 15)))
+        }
+
+        //Saved events are stored in the saved_events table.
+        //I load the current student’s saved event IDs and merge them into the event objects.
         const { data: saved } = await supabase
           .from('saved_events')
           .select('event_id')
@@ -658,6 +737,10 @@ export const useEventStore = defineStore('event', () => {
               }
             }
 
+          //===========把数据库的原始内容进行转变==============
+          //The store converts database rows into frontend EventItem objects.
+          // It also merges the student’s registration, waitlist and bookmark states,
+          // so the card receives all required information in one object.
           return {
             id: item.id,
             title: item.title,
@@ -875,6 +958,33 @@ export const useEventStore = defineStore('event', () => {
     }
   }
 
+  let activeRealtimeUserId: string | null = null
+
+  function setupRealtimeRegistrations(userId: string) {
+    if (!supabase || activeRealtimeUserId === userId) return
+    activeRealtimeUserId = userId
+
+    try {
+      supabase
+        .channel(`student-regs-${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'registrations',
+            filter: `student_id=eq.${userId}`,
+          },
+          () => {
+            void fetchEventsFromSupabase()
+          },
+        )
+        .subscribe()
+    } catch (e) {
+      console.warn('Realtime registration subscription failed:', e)
+    }
+  }
+
   return {
     events,
     searchQuery,
@@ -884,6 +994,7 @@ export const useEventStore = defineStore('event', () => {
     userRegisteredCount,
     userWaitlistedCount,
     userBookmarkedCount,
+    userCompletedCount,
     fetchEventsFromSupabase,
     createEventInSupabase,
     updateEventInSupabase,

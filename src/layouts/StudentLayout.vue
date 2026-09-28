@@ -1,4 +1,7 @@
 <template>
+  <!-- StudentLayout is the shared shell for student pages.
+   It contains the header, search bar and sidebar,
+   while DashboardView provides the main event content through the slot. -->
   <div class="student-layout">
     <!-- 顶部：品牌、搜索、账号 -->
     <header class="student-header">
@@ -29,27 +32,62 @@
       <div style="display: flex; align-items: center; gap: 20px;">
         <el-popover
           placement="bottom-end"
-          :width="320"
+          :width="340"
           trigger="click"
         >
           <template #reference>
             <button type="button" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; color:#555; padding: 4px;" aria-label="Notifications">
-              <el-badge :value="notifications.length" :hidden="notifications.length === 0" type="primary">
+              <el-badge :value="notifications.length" :hidden="notifications.length === 0" :type="hasPromotion ? 'success' : 'primary'">
                 <el-icon :size="22"><Bell /></el-icon>
               </el-badge>
             </button>
           </template>
-          
+
           <div>
-            <h4 style="margin:0 0 12px; padding-bottom:12px; border-bottom:1px solid #eee; font-size: 15px;">Notifications</h4>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #eee;">
+              <h4 style="margin: 0; font-size: 15px; font-weight: 600;">Notifications</h4>
+              <button
+                v-if="notifications.length > 0"
+                type="button"
+                style="background: none; border: none; font-size: 12px; color: var(--el-color-primary); cursor: pointer; padding: 2px 6px;"
+                @click="clearAllNotifications"
+              >
+                Clear all
+              </button>
+            </div>
             <div v-if="notifications.length === 0" style="text-align:center; color:#999; padding:20px 0; font-size: 14px;">
               No new notifications
             </div>
-            <div v-else style="max-height: 300px; overflow-y: auto;">
-              <div v-for="item in notifications" :key="item.id" style="padding: 12px 0; border-bottom: 1px solid #f5f5f5;">
-                <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color: var(--el-color-primary);">{{ item.title }}</div>
-                <div style="font-size: 13px; color: #555; line-height: 1.4;">{{ item.message }}</div>
-                <div style="font-size: 12px; color: #999; margin-top: 6px;">{{ item.time }}</div>
+            <div v-else style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+              <div
+                v-for="item in notifications"
+                :key="item.id"
+                :style="item.type === 'promotion'
+                  ? 'padding: 10px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; position: relative;'
+                  : 'padding: 10px 12px; background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 8px; position: relative;'"
+              >
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; padding-right: 18px;">
+                  <span
+                    :style="item.type === 'promotion'
+                      ? 'font-weight: 600; font-size: 13px; color: #16a34a;'
+                      : 'font-weight: 600; font-size: 13px; color: #1e293b;'"
+                  >
+                    {{ item.title }}
+                  </span>
+                  <span style="font-size: 11px; color: #94a3b8;">{{ item.time }}</span>
+                </div>
+
+                <!-- 单条清除按钮 -->
+                <button
+                  type="button"
+                  style="position: absolute; top: 8px; right: 8px; background: none; border: none; font-size: 14px; color: #94a3b8; cursor: pointer; line-height: 1; padding: 2px;"
+                  aria-label="Dismiss notification"
+                  @click.stop="dismissNotification(item.id)"
+                >
+                  &times;
+                </button>
+
+                <div style="font-size: 13px; color: #475569; line-height: 1.4;">{{ item.message }}</div>
               </div>
             </div>
           </div>
@@ -152,6 +190,7 @@ import {
   ArrowDown,
   Bell,
   Calendar,
+  CircleCheck,
   Clock,
   Grid,
   Search,
@@ -164,7 +203,15 @@ import {
 import { useAuthStore } from '@/stores/authStore'
 import { useEventStore } from '@/stores/eventStore'
 
-type EventTab = 'all' | 'registered' | 'waitlisted' | 'saved'
+type EventTab = 'all' | 'registered' | 'waitlisted' | 'saved' | 'completed'
+
+interface StudentNotification {
+  id: string
+  title: string
+  message: string
+  time: string
+  type?: 'promotion' | 'reminder' | 'waitlist'
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -172,39 +219,127 @@ const authStore = useAuthStore()
 const eventStore = useEventStore()
 
 const isSigningOut = ref(false)
+const promotionRefreshKey = ref(0)
 
-const notifications = computed(() => {
-  const list = []
-  
-  eventStore.events.filter(e => e.isRegistered).forEach(e => {
+const hasPromotion = computed(() => {
+  return notifications.value.some((n) => n.type === 'promotion')
+})
+
+function getDismissedNotificationIds(): string[] {
+  promotionRefreshKey.value // reactive dependency
+  const userId = authStore.currentUser?.id
+  if (!userId) return []
+  try {
+    return JSON.parse(localStorage.getItem(`user_dismissed_notifs_${userId}`) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function dismissNotification(id: string) {
+  const userId = authStore.currentUser?.id
+  if (!userId) return
+
+  // If it's a promotion, remove from promotions list as well
+  try {
+    const promoKey = `user_promotions_${userId}`
+    const storedPromos = JSON.parse(localStorage.getItem(promoKey) || '[]')
+    const nextPromos = storedPromos.filter((p: any) => p.id !== id)
+    localStorage.setItem(promoKey, JSON.stringify(nextPromos))
+  } catch {
+    // ignore
+  }
+
+  // Add to dismissed IDs
+  const dismissed = getDismissedNotificationIds()
+  if (!dismissed.includes(id)) {
+    dismissed.push(id)
+    localStorage.setItem(`user_dismissed_notifs_${userId}`, JSON.stringify(dismissed))
+  }
+
+  promotionRefreshKey.value++
+}
+
+function clearAllNotifications() {
+  const userId = authStore.currentUser?.id
+  if (!userId) return
+
+  // Clear promotions
+  localStorage.removeItem(`user_promotions_${userId}`)
+
+  // Mark all current notification IDs as dismissed
+  const dismissed = getDismissedNotificationIds()
+  notifications.value.forEach((n) => {
+    if (!dismissed.includes(n.id)) {
+      dismissed.push(n.id)
+    }
+  })
+  localStorage.setItem(`user_dismissed_notifs_${userId}`, JSON.stringify(dismissed))
+
+  promotionRefreshKey.value++
+}
+
+const notifications = computed<StudentNotification[]>(() => {
+  promotionRefreshKey.value // reactive dependency
+  const list: StudentNotification[] = []
+  const userId = authStore.currentUser?.id
+  const dismissedIds = new Set(getDismissedNotificationIds())
+
+  // 1. Persistent waitlist promotions
+  if (userId) {
+    try {
+      const storedPromos = JSON.parse(localStorage.getItem(`user_promotions_${userId}`) || '[]')
+      storedPromos.forEach((p: any) => {
+        if (!dismissedIds.has(p.id)) {
+          list.push({
+            id: p.id,
+            title: p.title || '🎉 Spot Confirmed',
+            message: p.message,
+            time: p.time || 'Recently',
+            type: 'promotion',
+          })
+        }
+      })
+    } catch {
+      // ignore
+    }
+  }
+
+  // 2. Upcoming reminders for registered events
+  eventStore.events.filter(e => e.isRegistered && e.status !== 'COMPLETED').forEach(e => {
     const isPast = e.startsAt ? new Date(e.startsAt).getTime() < Date.now() : false;
     const isActive = e.status !== 'COMPLETED' && e.status !== 'CANCELLED' && e.status !== 'CLOSED';
+    const notifId = `rem-${e.id}`
 
-    if (!isPast && isActive) {
+    if (!isPast && isActive && !dismissedIds.has(notifId)) {
       list.push({
-        id: `rem-${e.id}`,
+        id: notifId,
         title: 'Upcoming Event Reminder',
         message: `"${e.title}" is happening on ${e.startTime} at ${e.location}. See you there!`,
-        time: 'Just now'
+        time: 'Scheduled',
+        type: 'reminder',
       })
     }
   })
 
+  // 3. Waitlist updates
   eventStore.events.filter(e => e.isWaitlisted).forEach(e => {
     const isPast = e.startsAt ? new Date(e.startsAt).getTime() < Date.now() : false;
     const isActive = e.status !== 'COMPLETED' && e.status !== 'CANCELLED' && e.status !== 'CLOSED';
+    const notifId = `wl-${e.id}`
 
-    if (!isPast && isActive) {
+    if (!isPast && isActive && !dismissedIds.has(notifId)) {
       list.push({
-        id: `wl-${e.id}`,
-        title: 'Waitlist Update',
-        message: `You are on the waitlist for "${e.title}" (${e.startTime}). We'll let you know if a spot opens up.`,
-        time: 'Recently'
+        id: notifId,
+        title: 'Waitlist Status',
+        message: `You are on the waitlist for "${e.title}" (${e.startTime}). We'll notify you if a spot opens up.`,
+        time: 'In Queue',
+        type: 'waitlist',
       })
     }
   })
-  
-  return list.slice(0, 5)
+
+  return list.slice(0, 8)
 })
 
 const isDashboard = computed(
@@ -215,7 +350,7 @@ const userInitial = computed(() => {
   return authStore.currentUser?.name?.trim().charAt(0).toUpperCase() || 'U'
 })
 
-// 四个入口统一放在数组里，避免重复写四套模板
+// 五个入口统一放在数组里
 const navigationItems = computed(() => [
   {
     key: 'all' as const,
@@ -240,6 +375,12 @@ const navigationItems = computed(() => [
     label: 'Saved Events',
     icon: Star,
     count: eventStore.userBookmarkedCount,
+  },
+  {
+    key: 'completed' as const,
+    label: 'Completed Events',
+    icon: CircleCheck,
+    count: eventStore.userCompletedCount,
   },
 ])
 

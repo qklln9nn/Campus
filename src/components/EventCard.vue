@@ -429,7 +429,12 @@ const cardStatus = computed(() => {
 const actionLabel = computed(() => {
   if (props.event.isRegistered) return 'Cancel Registration'
   if (props.event.isWaitlisted) return 'Leave Waitlist'
-  if (!registrationOpen.value) return 'Registration Closed'
+  if (!registrationOpen.value) {
+    if(isPastEvent.value){
+      return 'Event Ended'
+    }
+    return 'Registration Closed'
+  }
   return isFull.value ? 'Join Waitlist' : 'Register Now'
 })
 
@@ -571,6 +576,15 @@ async function submitMyRating(val: number) {
     ElMessage.error(error instanceof Error ? error.message : typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : 'Failed to submit rating')
   }
 }
+
+function openDetails() {
+  detailsVisible.value = true
+}
+
+defineExpose({
+  openDetails,
+  detailsVisible,
+})
 </script>
 
 <style scoped src="../assets/styles/EventCard.css"></style>

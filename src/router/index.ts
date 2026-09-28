@@ -31,6 +31,10 @@ export const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true },
   },
   {
+    // /dashboard: Users need to log in first and the current user must be Student
+    ////Before opening the student dashboard,
+    // the router checks the session and the user role.
+    // Only authenticated student accounts can enter this page.
     path: '/dashboard',
     name: 'dashboard',
     component: () => import('../views/student/DashboardView.vue'),
@@ -87,6 +91,9 @@ export const routes: RouteRecordRaw[] = [
 
 type AuthStore = ReturnType<typeof useAuthStore>
 
+//Before opening the student dashboard,
+// the router checks the session and the user role.
+// Only authenticated student accounts can enter this page.
 export function createAuthGuard(authStore: AuthStore) {
   return async (to: RouteLocationNormalized) => {
     if (!authStore.authReady) await authStore.initializeAuth()
