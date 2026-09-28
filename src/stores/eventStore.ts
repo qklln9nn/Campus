@@ -127,6 +127,9 @@ export const useEventStore = defineStore('event', () => {
   const activeTab = ref<'all' | 'registered' | 'waitlisted' | 'saved'>('all')
 
   // Student-facing lists only expose events that passed moderation.
+  // Event filtering is handled by a computed property in the Pinia store.
+  // It checks visibility, the selected tab, category and search text,
+  // and updates automatically whenever those values change.
   const filteredEvents = computed(() => {
     return events.value.filter((event) => {
       const st = (event.status as string || '').toLowerCase()
@@ -317,11 +320,12 @@ export const useEventStore = defineStore('event', () => {
       event.waitlistCount = Math.max(0, event.waitlistCount - 1)
     }
 
-    const { error } = await supabase
-      .from('registrations')
-      .delete()
-      .eq('event_id', eventId)
-      .eq('student_id', userId)
+const { error } = await supabase.rpc(
+  'cancel_own_registration',
+  {
+    p_event_id: eventId,
+  },
+)
 
     if (error) {
       Object.assign(event, snapshot)
@@ -571,27 +575,35 @@ export const useEventStore = defineStore('event', () => {
   /**
    * Fetch Events dynamically from Supabase & merge registrations/saved state
    */
+  //The frontend requests event records from Supabase.
+  // Even though it uses select all,
+  // Row Level Security still controls which rows the student is allowed to receive.
   async function fetchEventsFromSupabase() {
     try {
       if (!supabase || !import.meta.env.VITE_SUPABASE_URL) return
 
+      //Step 1 : get users ID
       const authStore = useAuthStore()
       const currentUserId = authStore.currentUser?.id
 
-      // 1. Fetch Events directly from Supabase events table without restrictive foreign key join requirement
+      // *Step2:  Fetch Events directly from Supabase events table without restrictive foreign key join requirement
       const { data, error } = await supabase
         .from('events')
         .select('*')
+        //order by created time
         .order('created_at', { ascending: false })
 
       if (error) {
         console.error('Supabase fetchEvents error:', error)
       }
 
-      // 2. Fetch User Registrations & Saved Bookmarks if logged in
+      // Step 3: Fetch User Registrations & Saved Bookmarks if logged in
+      //I also load the current student’s registration records.
+      // Registered event IDs and waitlisted event IDs are stored in separate sets for fast lookup.
       const userRegSet = new Set<string>()
       const userWaitlistSet = new Set<string>()
       const userSavedSet = new Set<string>()
+
 
       if (currentUserId) {
         const { data: regs } = await supabase
@@ -606,6 +618,8 @@ export const useEventStore = defineStore('event', () => {
           })
         }
 
+      //Saved events are stored in the saved_events table.
+      //I load the current student’s saved event IDs and merge them into the event objects.
         const { data: saved } = await supabase
           .from('saved_events')
           .select('event_id')
@@ -658,6 +672,10 @@ export const useEventStore = defineStore('event', () => {
               }
             }
 
+          //===========把数据库的原始内容进行转变==============
+          //The store converts database rows into frontend EventItem objects.
+          // It also merges the student’s registration, waitlist and bookmark states,
+          // so the card receives all required information in one object.
           return {
             id: item.id,
             title: item.title,
