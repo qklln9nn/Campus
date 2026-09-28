@@ -352,6 +352,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function updateProfile(updatedData: Partial<UserProfile>): Promise<UserProfile> {
+    //Update the database
     const authUser = session.value?.user
     if (!authUser || !isAuthenticated.value) {
       throw new Error('You must be signed in with a synchronized profile to update it.')
@@ -376,6 +377,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       const { data, error } = await supabase
+      //UPDATE
         .from('profiles')
         .update(profileUpdate)
         .eq('id', authUser.id)
@@ -385,6 +387,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (error) throw error
       if (!data) throw new Error('Supabase did not return the updated profile.')
 
+        //eplaces currentUser with the returned database data.
       currentUser.value = normalizeProfile(authUser, data as ProfileRow)
       return currentUser.value
     } catch (error) {

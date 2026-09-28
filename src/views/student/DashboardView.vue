@@ -35,7 +35,10 @@
 
   <el-row v-if="recommendedEvents.length > 0" :gutter="28">
     <el-col v-for="event in recommendedEvents" :key="event.id" :xs="24" :sm="12" :md="8">
-      <EventCard :event="event" @register-event="openRegistrationDialog" @cancel-registration="handleCancelRegistration" @toggle-bookmark="handleToggleBookmark" />
+      <EventCard :event="event"
+      @register-event="openRegistrationDialog"
+      @cancel-registration="handleCancelRegistration"
+      @toggle-bookmark="handleToggleBookmark" />
     </el-col>
   </el-row>
 </div>
@@ -281,14 +284,17 @@ async function generateRecommendations() {
     return
   }
   isAiLoading.value = true
-  try {
+  try {//Prepare profile and event data for AI recommendations
     const profile = {
       interests: authStore.currentUser.interests || [],
       clubs: authStore.currentUser.clubs || [],
       availableTime: authStore.currentUser.availableTime || []
     }
 
+
+    //Choose at most 20
     const upcoming = sortedEvents.value.slice(0, 20).map(e => ({
+      //Send the data which Ai need
       id: e.id,
       title: e.title,
       category: e.category,
@@ -297,12 +303,14 @@ async function generateRecommendations() {
     }))
 
     const { data, error } = await supabase.functions.invoke('ai-recommendation', {
+      //call Edge Function
       body: { profile, events: upcoming }
     })
 
     if (error) throw error
 
     if (data && data.recommendedIds) {
+      //Change AI Recommendation IDs into the EventCard
       recommendedEvents.value = eventStore.events.filter(e => data.recommendedIds.includes(e.id))
       aiReason.value = data.reason
     }
@@ -346,12 +354,14 @@ const calendarSelectedEvent = computed(() => {
 })
 
 function getEventsForDate(dateStr: string) {
+  //get events in someday : 寻找某一天的活动
   return sortedEvents.value.filter(
     (e) => e.startsAt?.split('T')[0] === dateStr
   )
 }
 
 function handleCalendarEventClick(event: EventItem) {
+  //Click the event in the calendar, reuses EventCard to open the event details.
   calendarSelectedEventId.value = event.id
   nextTick(() => {
     calendarEventCardRef.value?.openDetails()
@@ -397,7 +407,9 @@ function getOccupancyRate(event: EventItem): number {
 // his keeps filtering and presentation responsibilities separate.
 const sortedEvents = computed(() => {
   let list = [...eventStore.filteredEvents]
-//======upcoimg sort=========
+//list copy the eventStore
+//eventStore decides which events are visible, while DashboardView decides their display order.
+  //======upcoimg sort=========
   if (sortBy.value === 'upcoming') {
     const now = Date.now()
 
@@ -515,6 +527,8 @@ function onRegistrationPosterError(event: Event) {
   handlePosterError(event, selectedEvent.value?.category)
 }
 
+
+// DashboardView receives the event ID and passes it to eventStore.toggleBookmark.
 async function handleToggleBookmark(eventId: string) {
   try {
     await eventStore.toggleBookmark(eventId)
@@ -522,6 +536,7 @@ async function handleToggleBookmark(eventId: string) {
     ElMessage.error(error instanceof Error ? error.message : 'Unable to update saved event.')
   }
 }
+
 
 async function confirmRegistration() {
   if (!selectedEvent.value) return
@@ -557,6 +572,8 @@ async function confirmRegistration() {
 }
 
 // Handle Cancel Registration Confirmation
+//Student Cancel Flow
+//Dialog to comfirm the choice
 function handleCancelRegistration(eventId: string) {
   const event = eventStore.events.find((e: EventItem) => e.id === eventId)
   if (!event) return
@@ -574,6 +591,8 @@ function handleCancelRegistration(eventId: string) {
   )
     .then(async () => {
       try {
+        //When the student confirms,:
+        // DashboardView asks for confirmation and then passes the event ID to eventStore.
         await eventStore.cancelRegistration(eventId)
         ElMessage({
           type: 'info',
