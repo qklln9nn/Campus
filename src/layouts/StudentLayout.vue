@@ -1,4 +1,7 @@
 <template>
+  <!-- StudentLayout is the shared shell for student pages.
+   It contains the header, search bar and sidebar,
+   while DashboardView provides the main event content through the slot. -->
   <div class="student-layout">
     <!-- 顶部：品牌、搜索、账号 -->
     <header class="student-header">
@@ -39,7 +42,7 @@
               </el-badge>
             </button>
           </template>
-          
+
           <div>
             <h4 style="margin:0 0 12px; padding-bottom:12px; border-bottom:1px solid #eee; font-size: 15px;">Notifications</h4>
             <div v-if="notifications.length === 0" style="text-align:center; color:#999; padding:20px 0; font-size: 14px;">
@@ -166,6 +169,13 @@ import { useEventStore } from '@/stores/eventStore'
 
 type EventTab = 'all' | 'registered' | 'waitlisted' | 'saved'
 
+interface StudentNotification {
+  id: string
+  title: string
+  message: string
+  time: string
+}
+
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -173,9 +183,9 @@ const eventStore = useEventStore()
 
 const isSigningOut = ref(false)
 
-const notifications = computed(() => {
-  const list = []
-  
+const notifications = computed<StudentNotification[]>(() => {
+  const list: StudentNotification[] = []
+
   eventStore.events.filter(e => e.isRegistered).forEach(e => {
     const isPast = e.startsAt ? new Date(e.startsAt).getTime() < Date.now() : false;
     const isActive = e.status !== 'COMPLETED' && e.status !== 'CANCELLED' && e.status !== 'CLOSED';
@@ -203,7 +213,7 @@ const notifications = computed(() => {
       })
     }
   })
-  
+
   return list.slice(0, 5)
 })
 
