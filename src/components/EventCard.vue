@@ -40,13 +40,28 @@
         <span>{{ event.location }}</span>
       </p>
 
+      <!-- EventCard divides them to display the average rating. -->
       <p v-if="event.ratingCount && event.ratingCount > 0" style="color: #f59e0b; font-size: 13px; font-weight: 500; display:flex; align-items:center; gap: 4px; margin-top: 4px; margin-bottom: 0;">
         <el-icon><StarFilled /></el-icon>
         {{ (event.ratingSum! / event.ratingCount!).toFixed(1) }} / 5.0 ({{ event.ratingCount }} ratings)
       </p>
 
-      <div v-if="event.isRegistered && isPastEvent" style="margin-top: 12px; display: flex; align-items: center; gap: 8px;">
-        <span v-if="hasRated" style="color: #9ca3af; font-size: 13px;">✅ You have rated this event</span>
+
+      <!-- Show rating control for a registered past event -->
+       <!-- EventCard shows the rating control when the student was registered and the event has ended. -->
+      <div v-if="event.isRegistered && isPastEvent"
+      style=
+      "margin-top: 12px;
+       display: flex;
+       align-items: center;
+       gap: 8px;">
+        <span v-if="hasRated"
+        style=
+        "color: #9ca3af;
+         font-size: 13px;"
+         >You have rated this event
+        </span>
+        <!-- When haven't rated -->
         <el-rate v-else v-model="myRating" @change="submitMyRating" />
       </div>
 
@@ -79,6 +94,8 @@
           :aria-pressed="event.isBookmarked"
           @click="emit('toggle-bookmark', event.id)"
         >
+        <!-- EventCard uses isBookmarked to display Save or Saved.
+         When clicked, it emits the event ID to DashboardView. -->
           <el-icon>
             <StarFilled v-if="event.isBookmarked" />
             <Star v-else />
@@ -240,6 +257,7 @@
     </el-dialog>
 
     <!-- 举报 -->
+     <!-- Student fills the blank to Report -->
     <el-dialog
       v-model="reportModalVisible"
       title="Report event"
@@ -250,6 +268,7 @@
         Reporting: <strong>{{ event.title }}</strong>
       </p>
 
+      <!-- //Choose a report reason -->
       <el-form label-position="top">
         <el-form-item label="Reason" required>
           <el-select
@@ -276,6 +295,7 @@
           </el-select>
         </el-form-item>
 
+        <!-- Explain why to report -->
         <el-form-item label="Explanation">
           <el-input
             v-model="reportDetails"
@@ -410,14 +430,22 @@ const scheduleText = computed(() => {
 })
 
 // 报名状态
+//【Student Registration and Waitlist Flow】
+// [Step 2] : Compute the registration button state. It controls that the button will show on the page.
 const registrationOpen = computed(() =>
   isEventRegistrationOpen(props.event),
 )
-
+//[Step 2] :If the event is full
 const isFull = computed(
   () => props.event.registeredCount >= props.event.capacity,
 )
-
+//[Step 2] : It controls the label on the button
+//Register Now
+// Join Waitlist
+// Cancel Registration
+// Leave Waitlist
+// Registration Closed
+// Event Ended
 const cardStatus = computed(() => {
   if (props.event.isRegistered) return 'Registered'
   if (props.event.isWaitlisted) return 'On the waitlist'
@@ -445,6 +473,9 @@ const actionDisabled = computed(
     !registrationOpen.value,
 )
 
+//【Student Registration and Waitlist Flow】& [Cancel flow]
+// [Step 3] : When the user click the button, it will do this function.
+//Determine if the student clicks is 'register' or 'cancel'
 function handleRegistrationAction() {
   if (props.hideActionBtn || actionDisabled.value) return
 
@@ -467,6 +498,7 @@ const isSubmittingReport = computed(
 )
 
 function openReportModal() {
+  // The student opens the report dialog from EventCard and selects a reason for reporting the event.
   detailsVisible.value = false
   reportReason.value = ''
   reportDetails.value = ''
@@ -474,6 +506,7 @@ function openReportModal() {
 }
 
 async function submitReport() {
+  //Submit the Report
   if (isSubmittingReport.value) return
 
   if (!reportReason.value) {
@@ -487,6 +520,8 @@ async function submitReport() {
   }
 
   try {
+    //Call the Supabase after check
+    //event.id , reason and details
     await moderationStore.submitReport(
       props.event.id,
       reportReason.value,
@@ -558,17 +593,21 @@ const isPastEvent = computed(() => {
 const hasRated = ref(localStorage.getItem(`rated_${props.event.id}`) === 'true')
 const myRating = ref(0)
 
+  // Submit rating through Supabase RPC
 async function submitMyRating(val: number) {
   if (val === 0) return
-  
+
   try {
+    //  Submit rating through Supabase RPC
+    //EventCard sends the event ID and selected rating to the submit_event_rating RPC.
+    // The interface is updated only after Supabase succeeds.
     const { error } = await supabase.rpc('submit_event_rating', { p_event_id: props.event.id, p_rating: val })
     if (error) throw error
-    
+
     // Only update UI if the RPC succeeded
     hasRated.value = true
     localStorage.setItem(`rated_${props.event.id}`, 'true')
-    
+
     props.event.ratingSum = (props.event.ratingSum || 0) + val
     props.event.ratingCount = (props.event.ratingCount || 0) + 1
   } catch (error) {

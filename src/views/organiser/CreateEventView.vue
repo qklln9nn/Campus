@@ -218,71 +218,65 @@ async function generateAICopy() {
 
 async function handleLocalImageUpload(file: UploadFile) {
   const rawFile = file.raw
-  if (!rawFile) return
 
-  if (!rawFile.type.startsWith('image/')) {
-    ElMessage.error('Please select a valid image file.')
+  if (!rawFile) {
+    ElMessage.error('No image file was selected.')
     return
   }
-  if (rawFile.size > 5 * 1024 * 1024) {
-    ElMessage.error('Image file size must be smaller than 5MB.')
+
+  const allowedTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+  ]
+
+  if (!allowedTypes.includes(rawFile.type)) {
+    ElMessage.error('Please select a JPG, PNG or WEBP image.')
+    return
+  }
+
+  // Base64 会比较大，所以暂时限制为 500KB
+  if (rawFile.size > 500 * 1024) {
+    ElMessage.error('For now, please use an image smaller than 500KB.')
     return
   }
 
   isUploadingImage.value = true
+
   try {
-    let uploadedUrl = ''
+    const imageData = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
 
-    if (supabase && import.meta.env.VITE_SUPABASE_URL) {
-      const fileExt = rawFile.name.split('.').pop() || 'png'
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
-      const filePath = `posters/${fileName}`
-
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('event-posters')
-        .upload(filePath, rawFile, { cacheControl: '3600', upsert: true })
-
-      if (uploadError) {
-        console.error('Supabase Storage Upload Error:', uploadError.message)
-        ElMessage.warning(`Storage error: ${uploadError.message}. Falling back to base64.`)
-      } else if (uploadData) {
-        const { data: publicUrlData } = supabase.storage
-          .from('event-posters')
-          .getPublicUrl(filePath)
-
-        if (publicUrlData?.publicUrl) {
-          uploadedUrl = publicUrlData.publicUrl
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result)
+        } else {
+          reject(new Error('The image could not be read.'))
         }
       }
-    }
 
-    // 3. 如果 Supabase 上传失败，降级为 Base64（注意：Base64 无法通过 Element Plus 的 type:'url' 规则）
-    if (!uploadedUrl) {
-      uploadedUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = (err) => reject(err)
-        reader.readAsDataURL(rawFile)
-      })
-    }
+      reader.onerror = () => {
+        reject(new Error('The image could not be read.'))
+      }
 
-    // 4. 更新表达数据并手动触发校验
-    formData.posterUrl = uploadedUrl
-    // 如果是 Base64 格式，清空 URL 格式校验报错
-    if (uploadedUrl.startsWith('data:')) {
-      formRef.value?.clearValidate('posterUrl')
-    } else {
-      formRef.value?.validateField('posterUrl').catch(() => {})
-    }
+      reader.readAsDataURL(rawFile)
+    })
 
-    ElMessage.success('Local image uploaded successfully!')
-  } catch (err) {
-    console.error('Local image upload process error:', err)
-    ElMessage.error(err instanceof Error ? err.message : 'Failed to process the selected image.')
+    formData.posterUrl = imageData
+    formRef.value?.clearValidate('posterUrl')
+
+    ElMessage.success('Local image selected successfully!')
+  } catch (error) {
+    ElMessage.error(
+      error instanceof Error
+        ? error.message
+        : 'Failed to process the image.',
+    )
   } finally {
     isUploadingImage.value = false
   }
 }
+
 
 const venuePresets = ['Student Centre', 'Main Library', 'Recreation Centre', 'Online']
 const presetPosters = [
