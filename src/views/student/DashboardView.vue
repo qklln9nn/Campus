@@ -99,7 +99,12 @@
                     class="calendar-event-item"
                     @click.stop="handleCalendarEventClick(event)"
                   >
-                    <el-tag size="small" disable-transitions class="calendar-tag">
+                    <el-tag
+                      size="small"
+                      disable-transitions
+                      class="calendar-tag"
+                      :type="event.isRegistered ? 'success' : (event.isWaitlisted ? 'warning' : 'info')"
+                    >
                       {{ event.title }}
                     </el-tag>
                   </div>
@@ -107,6 +112,18 @@
               </div>
             </template>
           </el-calendar>
+
+          <!-- Hidden EventCard instance for calendar event detail modal -->
+          <div style="display: none;">
+            <EventCard
+              v-if="calendarSelectedEvent"
+              ref="calendarEventCardRef"
+              :event="calendarSelectedEvent"
+              @register-event="openRegistrationDialog"
+              @cancel-registration="handleCancelRegistration"
+              @toggle-bookmark="handleToggleBookmark"
+            />
+          </div>
         </div>
 
         <template v-else>
@@ -237,7 +254,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import StudentLayout from '@/layouts/StudentLayout.vue'
 import EventCard from '@/components/EventCard.vue'
 import { useEventStore } from '@/stores/eventStore'
@@ -320,6 +337,14 @@ const currentPage = ref(1)
 const pageSize = ref(9)
 
 const viewMode = ref<'list' | 'calendar'>('list')
+const calendarSelectedEventId = ref<string | null>(null)
+const calendarEventCardRef = ref<InstanceType<typeof EventCard> | null>(null)
+
+const calendarSelectedEvent = computed(() => {
+  if (!calendarSelectedEventId.value) return null
+  return eventStore.events.find((e) => e.id === calendarSelectedEventId.value) || null
+})
+
 function getEventsForDate(dateStr: string) {
   return sortedEvents.value.filter(
     (e) => e.startsAt?.split('T')[0] === dateStr
@@ -327,22 +352,10 @@ function getEventsForDate(dateStr: string) {
 }
 
 function handleCalendarEventClick(event: EventItem) {
-  if (event.isRegistered) {
-    ElMessage.info(`You are already registered for "${event.title}".`)
-    return
-  }
-
-  if (event.isWaitlisted) {
-    ElMessage.info(`You are already on the waitlist for "${event.title}".`)
-    return
-  }
-
-  if (!isEventRegistrationOpen(event)) {
-    ElMessage.warning('Registration for this event is closed.')
-    return
-  }
-
-  openRegistrationDialog(event)
+  calendarSelectedEventId.value = event.id
+  nextTick(() => {
+    calendarEventCardRef.value?.openDetails()
+  })
 }
 
 // Registration Modal State

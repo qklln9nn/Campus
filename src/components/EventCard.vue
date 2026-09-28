@@ -429,7 +429,12 @@ const cardStatus = computed(() => {
 const actionLabel = computed(() => {
   if (props.event.isRegistered) return 'Cancel Registration'
   if (props.event.isWaitlisted) return 'Leave Waitlist'
-  if (!registrationOpen.value) return 'Registration Closed'
+  if (!registrationOpen.value) {
+    if(isPastEvent.value){
+      return 'Event Ended'
+    }
+    return 'Registration Closed'
+  }
   return isFull.value ? 'Join Waitlist' : 'Register Now'
 })
 
@@ -557,16 +562,25 @@ async function submitMyRating(val: number) {
   if (val === 0) return
   hasRated.value = true
   localStorage.setItem(`rated_${props.event.id}`, 'true')
-  
+
   props.event.ratingSum = (props.event.ratingSum || 0) + val
   props.event.ratingCount = (props.event.ratingCount || 0) + 1
-  
+
   try {
     await supabase.rpc('submit_event_rating', { p_event_id: props.event.id, p_rating: val })
   } catch (error) {
     console.error('Failed to submit rating', error)
   }
 }
+
+function openDetails() {
+  detailsVisible.value = true
+}
+
+defineExpose({
+  openDetails,
+  detailsVisible,
+})
 </script>
 
 <style scoped src="../assets/styles/EventCard.css"></style>
