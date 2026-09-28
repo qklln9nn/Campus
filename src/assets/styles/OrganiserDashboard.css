@@ -274,7 +274,28 @@
   display: inline-block;
   margin-left: 8px;
 }
+.event-rating {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 0.85rem;
+}
 
+.event-rating strong {
+  color: #11213d;
+  font-weight: 700;
+}
+
+.rating-star {
+  color: #e0a21a;
+  font-size: 1rem;
+}
+
+.no-rating {
+  color: #94a3b8;
+}
 /* Action Area */
 .event-actions {
   display: flex;
