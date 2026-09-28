@@ -1,25 +1,23 @@
--- Reviews are limited to one per student and event.
-create table public.reviews (
+﻿-- ratings are limited to one per student and event.
+create table public.ratings (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.events (id) on delete cascade,
   student_id uuid not null references public.profiles (id) on delete cascade,
   rating smallint not null,
-  comment text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint reviews_event_student_key unique (event_id, student_id),
-  constraint reviews_rating_check check (rating between 1 and 5),
-  constraint reviews_comment_length_check check (char_length(comment) <= 2000)
+  constraint ratings_event_student_key unique (event_id, student_id),
+  constraint ratings_rating_check check (rating between 1 and 5)
 );
 
-create index reviews_event_id_idx on public.reviews (event_id);
-create index reviews_student_id_idx on public.reviews (student_id);
+create index ratings_event_id_idx on public.ratings (event_id);
+create index ratings_student_id_idx on public.ratings (student_id);
 
-create trigger reviews_set_updated_at
-before update on public.reviews
+create trigger ratings_set_updated_at
+before update on public.ratings
 for each row execute function public.set_updated_at();
 
-create function public.protect_review_identity()
+create function public.protect_rating_identity()
 returns trigger
 language plpgsql
 security definer
@@ -33,39 +31,39 @@ begin
   if new.event_id is distinct from old.event_id
     or new.student_id is distinct from old.student_id
     or new.created_at is distinct from old.created_at then
-    raise exception 'Review identity fields cannot be changed';
+    raise exception 'rating identity fields cannot be changed';
   end if;
 
   return new;
 end;
 $$;
 
-revoke all on function public.protect_review_identity() from public;
+revoke all on function public.protect_rating_identity() from public;
 
-create trigger reviews_protect_identity
-before update on public.reviews
-for each row execute function public.protect_review_identity();
+create trigger ratings_protect_identity
+before update on public.ratings
+for each row execute function public.protect_rating_identity();
 
-alter table public.reviews enable row level security;
+alter table public.ratings enable row level security;
 
-grant select on table public.reviews to authenticated;
-grant insert, update, delete on table public.reviews to authenticated;
+grant select on table public.ratings to authenticated;
+grant insert, update, delete on table public.ratings to authenticated;
 
-create policy reviews_select_published_events
-on public.reviews
+create policy ratings_select_published_events
+on public.ratings
 for select
 to authenticated
 using (
   exists (
     select 1
     from public.events as event
-    where event.id = reviews.event_id
+    where event.id = ratings.event_id
       and event.status in ('published', 'completed')
   )
 );
 
-create policy reviews_select_own_or_admin
-on public.reviews
+create policy ratings_select_own_or_admin
+on public.ratings
 for select
 to authenticated
 using (
@@ -73,8 +71,8 @@ using (
   or public.current_user_role() = 'admin'
 );
 
-create policy reviews_insert_own_attended_event
-on public.reviews
+create policy ratings_insert_own_attended_event
+on public.ratings
 for insert
 to authenticated
 with check (
@@ -84,7 +82,7 @@ with check (
     select 1
     from public.registrations as registration
     join public.events as event on event.id = registration.event_id
-    where registration.event_id = reviews.event_id
+    where registration.event_id = ratings.event_id
       and registration.student_id = (select auth.uid())
       and registration.status = 'registered'
       and registration.attendance_status = 'attended'
@@ -98,8 +96,8 @@ with check (
   )
 );
 
-create policy reviews_update_own_attended_event
-on public.reviews
+create policy ratings_update_own_attended_event
+on public.ratings
 for update
 to authenticated
 using (student_id = (select auth.uid()))
@@ -110,7 +108,7 @@ with check (
     select 1
     from public.registrations as registration
     join public.events as event on event.id = registration.event_id
-    where registration.event_id = reviews.event_id
+    where registration.event_id = ratings.event_id
       and registration.student_id = (select auth.uid())
       and registration.status = 'registered'
       and registration.attendance_status = 'attended'
@@ -124,8 +122,8 @@ with check (
   )
 );
 
-create policy reviews_delete_own
-on public.reviews
+create policy ratings_delete_own
+on public.ratings
 for delete
 to authenticated
 using (
@@ -133,9 +131,10 @@ using (
   and public.current_user_role() = 'student'
 );
 
-create policy reviews_admin_all
-on public.reviews
+create policy ratings_admin_all
+on public.ratings
 for all
 to authenticated
 using (public.current_user_role() = 'admin')
 with check (public.current_user_role() = 'admin');
+
