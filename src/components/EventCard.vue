@@ -45,8 +45,19 @@
         {{ (event.ratingSum! / event.ratingCount!).toFixed(1) }} / 5.0 ({{ event.ratingCount }} ratings)
       </p>
 
-      <div v-if="event.isRegistered && isPastEvent" style="margin-top: 12px; display: flex; align-items: center; gap: 8px;">
-        <span v-if="hasRated" style="color: #9ca3af; font-size: 13px;">✅ You have rated this event</span>
+
+      <div v-if="event.isRegistered && isPastEvent"
+      style=
+      "margin-top: 12px;
+       display: flex;
+       align-items: center;
+       gap: 8px;">
+        <span v-if="hasRated"
+        style=
+        "color: #9ca3af;
+         font-size: 13px;"
+         >You have rated this event
+        </span>
         <el-rate v-else v-model="myRating" @change="submitMyRating" />
       </div>
 
@@ -79,6 +90,8 @@
           :aria-pressed="event.isBookmarked"
           @click="emit('toggle-bookmark', event.id)"
         >
+        <!-- EventCard uses isBookmarked to display Save or Saved.
+         When clicked, it emits the event ID to DashboardView. -->
           <el-icon>
             <StarFilled v-if="event.isBookmarked" />
             <Star v-else />
@@ -410,14 +423,22 @@ const scheduleText = computed(() => {
 })
 
 // 报名状态
+//【Student Registration and Waitlist Flow】
+// [Step 2] : Compute the registration button state. It controls that the button will show on the page.
 const registrationOpen = computed(() =>
   isEventRegistrationOpen(props.event),
 )
-
+//[Step 2] :If the event is full
 const isFull = computed(
   () => props.event.registeredCount >= props.event.capacity,
 )
-
+//[Step 2] : It controls the label on the button
+//Register Now
+// Join Waitlist
+// Cancel Registration
+// Leave Waitlist
+// Registration Closed
+// Event Ended
 const cardStatus = computed(() => {
   if (props.event.isRegistered) return 'Registered'
   if (props.event.isWaitlisted) return 'On the waitlist'
@@ -445,6 +466,9 @@ const actionDisabled = computed(
     !registrationOpen.value,
 )
 
+//【Student Registration and Waitlist Flow】& [Cancel flow]
+// [Step 3] : When the user click the button, it will do this function.
+//Determine if the student clicks is 'register' or 'cancel'
 function handleRegistrationAction() {
   if (props.hideActionBtn || actionDisabled.value) return
 
