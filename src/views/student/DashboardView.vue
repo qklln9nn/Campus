@@ -284,14 +284,17 @@ async function generateRecommendations() {
     return
   }
   isAiLoading.value = true
-  try {
+  try {//Prepare profile and event data for AI recommendations
     const profile = {
       interests: authStore.currentUser.interests || [],
       clubs: authStore.currentUser.clubs || [],
       availableTime: authStore.currentUser.availableTime || []
     }
 
+
+    //Choose at most 20
     const upcoming = sortedEvents.value.slice(0, 20).map(e => ({
+      //Send the data which Ai need
       id: e.id,
       title: e.title,
       category: e.category,
@@ -300,12 +303,14 @@ async function generateRecommendations() {
     }))
 
     const { data, error } = await supabase.functions.invoke('ai-recommendation', {
+      //call Edge Function
       body: { profile, events: upcoming }
     })
 
     if (error) throw error
 
     if (data && data.recommendedIds) {
+      //Change AI Recommendation IDs into the EventCard
       recommendedEvents.value = eventStore.events.filter(e => data.recommendedIds.includes(e.id))
       aiReason.value = data.reason
     }
@@ -349,12 +354,14 @@ const calendarSelectedEvent = computed(() => {
 })
 
 function getEventsForDate(dateStr: string) {
+  //get events in someday : 寻找某一天的活动
   return sortedEvents.value.filter(
     (e) => e.startsAt?.split('T')[0] === dateStr
   )
 }
 
 function handleCalendarEventClick(event: EventItem) {
+  //Click the event in the calendar, reuses EventCard to open the event details.
   calendarSelectedEventId.value = event.id
   nextTick(() => {
     calendarEventCardRef.value?.openDetails()
@@ -400,7 +407,9 @@ function getOccupancyRate(event: EventItem): number {
 // his keeps filtering and presentation responsibilities separate.
 const sortedEvents = computed(() => {
   let list = [...eventStore.filteredEvents]
-//======upcoimg sort=========
+//list copy the eventStore
+//eventStore decides which events are visible, while DashboardView decides their display order.
+  //======upcoimg sort=========
   if (sortBy.value === 'upcoming') {
     const now = Date.now()
 

@@ -40,12 +40,15 @@
         <span>{{ event.location }}</span>
       </p>
 
+      <!-- EventCard divides them to display the average rating. -->
       <p v-if="event.ratingCount && event.ratingCount > 0" style="color: #f59e0b; font-size: 13px; font-weight: 500; display:flex; align-items:center; gap: 4px; margin-top: 4px; margin-bottom: 0;">
         <el-icon><StarFilled /></el-icon>
         {{ (event.ratingSum! / event.ratingCount!).toFixed(1) }} / 5.0 ({{ event.ratingCount }} ratings)
       </p>
 
 
+      <!-- Show rating control for a registered past event -->
+       <!-- EventCard shows the rating control when the student was registered and the event has ended. -->
       <div v-if="event.isRegistered && isPastEvent"
       style=
       "margin-top: 12px;
@@ -58,6 +61,7 @@
          font-size: 13px;"
          >You have rated this event
         </span>
+        <!-- When haven't rated -->
         <el-rate v-else v-model="myRating" @change="submitMyRating" />
       </div>
 
@@ -253,6 +257,7 @@
     </el-dialog>
 
     <!-- 举报 -->
+     <!-- Student fills the blank to Report -->
     <el-dialog
       v-model="reportModalVisible"
       title="Report event"
@@ -263,6 +268,7 @@
         Reporting: <strong>{{ event.title }}</strong>
       </p>
 
+      <!-- //Choose a report reason -->
       <el-form label-position="top">
         <el-form-item label="Reason" required>
           <el-select
@@ -289,6 +295,7 @@
           </el-select>
         </el-form-item>
 
+        <!-- Explain why to report -->
         <el-form-item label="Explanation">
           <el-input
             v-model="reportDetails"
@@ -491,6 +498,7 @@ const isSubmittingReport = computed(
 )
 
 function openReportModal() {
+  // The student opens the report dialog from EventCard and selects a reason for reporting the event.
   detailsVisible.value = false
   reportReason.value = ''
   reportDetails.value = ''
@@ -498,6 +506,7 @@ function openReportModal() {
 }
 
 async function submitReport() {
+  //Submit the Report
   if (isSubmittingReport.value) return
 
   if (!reportReason.value) {
@@ -511,6 +520,8 @@ async function submitReport() {
   }
 
   try {
+    //Call the Supabase after check
+    //event.id , reason and details
     await moderationStore.submitReport(
       props.event.id,
       reportReason.value,
@@ -582,17 +593,21 @@ const isPastEvent = computed(() => {
 const hasRated = ref(localStorage.getItem(`rated_${props.event.id}`) === 'true')
 const myRating = ref(0)
 
+  // Submit rating through Supabase RPC
 async function submitMyRating(val: number) {
   if (val === 0) return
-  
+
   try {
+    //  Submit rating through Supabase RPC
+    //EventCard sends the event ID and selected rating to the submit_event_rating RPC.
+    // The interface is updated only after Supabase succeeds.
     const { error } = await supabase.rpc('submit_event_rating', { p_event_id: props.event.id, p_rating: val })
     if (error) throw error
-    
+
     // Only update UI if the RPC succeeded
     hasRated.value = true
     localStorage.setItem(`rated_${props.event.id}`, 'true')
-    
+
     props.event.ratingSum = (props.event.ratingSum || 0) + val
     props.event.ratingCount = (props.event.ratingCount || 0) + 1
   } catch (error) {
