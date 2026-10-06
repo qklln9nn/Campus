@@ -126,6 +126,11 @@ export const useEventStore = defineStore('event', () => {
   const searchQuery = ref('')
   const selectedCategory = ref<CategoryType | 'All'>('All')
   const activeTab = ref<'all' | 'registered' | 'waitlisted' | 'saved'| 'completed'>('all')
+  const aiSearchActive = ref(false)
+  const aiSearchSummary = ref('')
+  const aiSearchMatchedIds = ref<string[]>([])
+  const aiSearchReasons = ref<Record<string, string>>({})
+  const isAiSearching = ref(false)
 
   // Student-facing lists only expose events that passed moderation.
   // Event filtering is handled by a computed property in the Pinia store.
@@ -136,6 +141,10 @@ export const useEventStore = defineStore('event', () => {
     return events.value.filter((event) => {
       const st = (event.status as string || '').toLowerCase()
       if (!['published', 'completed', 'open', 'filling_fast', 'waitlist'].includes(st)) return false
+
+      if (aiSearchActive.value) {
+        return aiSearchMatchedIds.value.includes(event.id)
+      }
 
       // Tab filter
       if (activeTab.value === 'registered' && (!event.isRegistered|| event.status === 'COMPLETED' )) return false
@@ -1031,12 +1040,64 @@ const userRegisteredCount = computed(() =>
     }
   }
 
+  async function performAiSearch(queryText: string) {
+    if (!queryText || !queryText.trim()) {
+      clearAiSearch()
+      return
+    }
+    isAiSearching.value = true
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const { data, error } = await supabase.functions.invoke('ai-smart-search', {
+        body: {
+          query: queryText.trim(),
+          currentDate: today,
+          events: events.value.map(e => ({
+            id: e.id,
+            title: e.title,
+            category: e.category,
+            event_date: e.eventDate,
+            location: e.location,
+            description: e.description
+          }))
+        }
+      })
+      if (!error && data?.result) {
+        aiSearchActive.value = true
+        aiSearchMatchedIds.value = data.result.matchedEventIds || []
+        aiSearchSummary.value = data.result.summary || 'Matching events found.'
+        aiSearchReasons.value = data.result.reasons || {}
+      } else {
+        throw error || new Error('Failed to perform AI search')
+      }
+    } catch (err) {
+      clearAiSearch()
+      throw err
+    } finally {
+      isAiSearching.value = false
+    }
+  }
+
+  function clearAiSearch() {
+    aiSearchActive.value = false
+    aiSearchSummary.value = ''
+    aiSearchMatchedIds.value = []
+    aiSearchReasons.value = {}
+  }
+
   return {
     events,
     searchQuery,
     selectedCategory,
     activeTab,
     filteredEvents,
+    aiSearchActive,
+    aiSearchSummary,
+    aiSearchMatchedIds,
+    aiSearchReasons,
+    isAiSearching,
+    performAiSearch,
+    clearAiSearch,
     userRegisteredCount,
     userWaitlistedCount,
     userBookmarkedCount,
