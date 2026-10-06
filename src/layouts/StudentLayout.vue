@@ -20,11 +20,23 @@
         <el-input
           v-model="eventStore.searchQuery"
           aria-label="Search campus events"
-          placeholder="Search campus events..."
+          placeholder="Search events or ask AI (e.g. 'badminton', 'AI talks')..."
           clearable
+          @clear="eventStore.clearAiSearch"
+          @keyup.enter="handleSearch"
         >
           <template #prefix>
             <el-icon><Search /></el-icon>
+          </template>
+          <template #append>
+            <el-button
+              :loading="eventStore.isAiSearching"
+              style="display: flex; align-items: center; gap: 4px;"
+              @click="handleSearch"
+            >
+              <el-icon><MagicStick /></el-icon>
+              <span>AI Search</span>
+            </el-button>
           </template>
         </el-input>
       </div>
@@ -198,6 +210,7 @@ import {
   SwitchButton,
   Ticket,
   User,
+  MagicStick,
 } from '@element-plus/icons-vue'
 
 import { useAuthStore } from '@/stores/authStore'
@@ -217,6 +230,18 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const eventStore = useEventStore()
+
+async function handleSearch() {
+  if (!eventStore.searchQuery.trim()) {
+    eventStore.clearAiSearch()
+    return
+  }
+  try {
+    await eventStore.performAiSearch(eventStore.searchQuery)
+  } catch (err: any) {
+    ElMessage.error(err?.message || 'Search failed')
+  }
+}
 
 const isSigningOut = ref(false)
 const promotionRefreshKey = ref(0)
