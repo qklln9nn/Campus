@@ -81,9 +81,11 @@
               <el-input v-model="formData.location" maxlength="120" placeholder="Building and room, or online meeting link">
                 <template #prefix><el-icon><Location /></el-icon></template>
               </el-input>
-              <div class="quick-options">
+              <div class="quick-options" style="margin-bottom: 8px;">
                 <button v-for="venue in venuePresets" :key="venue" type="button" @click="formData.location = venue">{{ venue }}</button>
               </div>
+              <p class="field-note" style="margin-bottom: 8px;">Optionally, select a precise map location for this event (this will be displayed to students on the map).</p>
+              <MapPicker v-model="formData.mapCoords" />
             </el-form-item>
 
             <el-form-item label="Capacity" prop="capacity">
@@ -172,6 +174,7 @@ import { useEventStore } from '@/stores/eventStore'
 import { categorySlug } from '@/lib/category'
 import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
 import type { EventStatus } from '@/types/event'
+import MapPicker from '@/components/MapPicker.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -298,6 +301,7 @@ const formData = reactive({
   date: '',
   timeRange: [] as string[],
   location: '',
+  mapCoords: null as { lat: number; lng: number } | null,
   capacity: 50,
   posterUrl: presetPosters[0]?.url ?? '',
 })
@@ -386,6 +390,7 @@ onMounted(async () => {
     formData.date = extractDate(event.startTime)
     formData.timeRange = [extractTime(event.startTime), extractTime(event.endTime)].filter(Boolean)
     formData.location = event.location
+    formData.mapCoords = typeof event.latitude === 'number' && typeof event.longitude === 'number' ? { lat: event.latitude, lng: event.longitude } : null
     formData.capacity = event.capacity
     formData.posterUrl = event.posterUrl
   } else {
@@ -443,6 +448,8 @@ async function submitForm(type: 'draft' | 'review') {
     capacity: formData.capacity,
     posterUrl: formData.posterUrl.trim(),
     isDraft: type === 'draft',
+    latitude: formData.mapCoords?.lat,
+    longitude: formData.mapCoords?.lng,
   }
 
   try {

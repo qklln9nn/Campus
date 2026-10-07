@@ -1,5 +1,7 @@
 <template>
+  <!-- Auth Page Container -->
   <div class="auth-page">
+    <!-- Top Navigation: Logo & Home Button -->
     <header class="auth-header">
       <router-link to="/" class="brand-link">
         <div class="brand-icon">
@@ -11,13 +13,17 @@
         <el-icon><Back /></el-icon> Return to Home
       </router-link>
     </header>
+    <!-- Main Auth Content -->
     <main class="auth-main">
+      <!-- Centered Card Wrapper -->
       <div class="auth-card-wrapper">
+        <!-- Card Header -->
         <div class="auth-card-header">
           <h2>Welcome to EventHub</h2>
           <p class="subtitle">Join campus activities, connect with clubs, and manage events.</p>
         </div>
 
+        <!-- Registration Notice Alert -->
         <el-alert
           v-if="registrationNotice"
           :title="registrationNotice"
@@ -27,8 +33,11 @@
           class="registration-notice"
         />
 
+        <!-- Auth Tabs for Login and Register -->
         <el-tabs v-model="activeTab" class="auth-tabs" stretch>
+          <!-- Sign In Tab -->
           <el-tab-pane label="Sign In" name="signin">
+            <!-- Login Form -->
             <el-form
               ref="loginFormRef"
               :model="loginForm"
@@ -67,7 +76,10 @@
               </el-button>
             </el-form>
           </el-tab-pane>
+          
+          <!-- Register Tab -->
           <el-tab-pane label="Register Account" name="register">
+            <!-- Register Form -->
             <el-form
               ref="registerFormRef"
               :model="registerForm"
@@ -185,7 +197,7 @@ const registrationNotice = ref(
         : '',
 )
 
-// Login Form Data
+// --- Login Form Data & Rules ---
 const loginFormRef = ref<FormInstance>()
 const loginForm = reactive({
   email: '',
@@ -214,7 +226,7 @@ const loginRules: FormRules = {
   ],
 }
 
-// Register Form Data
+// --- Register Form Data & Rules ---
 const registerFormRef = ref<FormInstance>()
 const registerForm = reactive({
   name: '',
@@ -266,9 +278,9 @@ function safeRedirectPath(): string | null {
   return redirect
 }
 
-//function for login
+// Handle login logic
 async function handleLogin() {
-  //trigger the front-end form rule validation
+  // Trigger form validation
   if (!(await validateForm(loginFormRef.value))) return
 
   isSubmitting.value = true
@@ -284,14 +296,14 @@ async function handleLogin() {
   }
 }
 
-//new auth register function
+// Handle register logic
 async function handleRegister() {
-  //check if the user agrees to the terms and conditions
+  // Check if user agreed to terms
   if (!registerForm.agreeTerms) {
     ElMessage.warning('Please agree to the Campus Terms & Privacy Policy before registering.')
     return
   }
-  //trigger the front-end form rule validation
+  // Trigger form validation
   if (!(await validateForm(registerFormRef.value))) return
 
   isSubmitting.value = true

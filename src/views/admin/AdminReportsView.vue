@@ -1,5 +1,7 @@
 <template>
+  <!-- Main Container -->
   <div class="admin-reports-view">
+    <!-- Page Header and Refresh Button -->
     <div class="page-header">
       <div><h1>Violation Reports & Moderation</h1><p>Review student reports and apply an auditable resolution.</p></div>
       <el-button :loading="loadingReports || loadingSettings" @click="loadReports">Refresh</el-button>
@@ -7,6 +9,7 @@
 
     <el-alert v-if="errorMessage" :title="errorMessage" type="error" show-icon :closable="false" />
 
+    <!-- Filter by Status -->
     <el-radio-group v-model="statusFilter" size="large">
       <el-radio-button value="pending">Pending ({{ pendingReportCount }})</el-radio-button>
       <el-radio-button value="reviewing">Reviewing</el-radio-button>
@@ -14,9 +17,13 @@
       <el-radio-button value="dismissed">Dismissed</el-radio-button>
     </el-radio-group>
 
+    <!-- Reports Grid Layout -->
     <div v-loading="loadingReports" class="reports-grid">
       <el-empty v-if="!loadingReports && filteredReports.length === 0" description="No reports in this status." />
+      
+      <!-- Individual Report Card -->
       <article v-for="report in filteredReports" :key="report.id" class="report-card">
+        <!-- Card Header: Ticket ID and Tags -->
         <header>
           <span class="ticket-id">Ticket #{{ report.id.slice(0, 8) }}</span>
           <div class="report-tags">
@@ -24,11 +31,15 @@
             <el-tag :type="getReasonTagType(report.reasonType)" effect="dark">{{ report.reasonType }}</el-tag>
           </div>
         </header>
+        
+        <!-- Card Body: Event Title and Report Details -->
         <div class="report-body">
           <h3>{{ report.targetTitle }}</h3>
           <p class="reporter">Reported by {{ report.reporter }} · {{ report.createdAt }}</p>
           <blockquote>{{ report.details }}</blockquote>
         </div>
+        
+        <!-- Card Footer: Current Status and Actions -->
         <footer>
           <el-tag :type="getStatusType(report.status)">{{ report.status.toUpperCase() }}</el-tag>
           <div v-if="report.status === 'pending' || report.status === 'reviewing'" class="actions">
@@ -50,8 +61,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useModerationStore, type ModerationReport, type ReportStatus } from '@/stores/moderationStore'
 import { useAdminStore } from '@/stores/adminStore'
 
+// --- Stores ---
 const moderationStore = useModerationStore()
 const adminStore = useAdminStore()
+
+// --- State & Computed Properties ---
 const { reports, loadingReports, errorMessage, pendingReportCount } = storeToRefs(moderationStore)
 const { settings, loadingSettings } = storeToRefs(adminStore)
 const statusFilter = ref<ReportStatus>('pending')
@@ -64,6 +78,7 @@ const openReportCounts = computed(() => {
   return counts
 })
 
+// --- Utility Functions ---
 function isEscalated(report: ModerationReport): boolean {
   if (!settings.value) return false
   return (openReportCounts.value.get(report.eventId) ?? 0) >= settings.value.reportThreshold
@@ -82,6 +97,7 @@ function getStatusType(status: ReportStatus) {
   return 'info'
 }
 
+// --- Action Handlers ---
 async function loadReports() {
   try { await Promise.all([moderationStore.fetchReports(), adminStore.fetchSettings()]) }
   catch { ElMessage.error(errorMessage.value || 'Unable to load reports.') }

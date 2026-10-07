@@ -173,6 +173,9 @@
               <el-icon><Location /></el-icon>
               <span><strong>Location:</strong> {{ selectedEvent.location }}</span>
             </div>
+            <div class="meta-row" v-if="typeof selectedEvent.latitude === 'number' && typeof selectedEvent.longitude === 'number'" style="margin-top: 10px;">
+              <MapView :lat="selectedEvent.latitude" :lng="selectedEvent.longitude" :popupText="selectedEvent.title" />
+            </div>
             <div class="meta-row">
               <el-icon><User /></el-icon>
               <span><strong>Organiser:</strong> {{ selectedEvent.organiser.name }}</span>
@@ -313,6 +316,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import EventCard from '@/components/EventCard.vue'
+import MapView from '@/components/MapView.vue'
 import { useEventStore } from '@/stores/eventStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useCategoryStore } from '@/stores/categoryStore'

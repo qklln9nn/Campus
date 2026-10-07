@@ -37,4 +37,6 @@ export interface EventItem {
   isBookmarked: boolean;
   ratingSum?: number;
   ratingCount?: number;
+  latitude?: number;
+  longitude?: number;
 }
