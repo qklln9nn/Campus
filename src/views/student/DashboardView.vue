@@ -208,6 +208,9 @@
                   <span>{{ selectedEvent.location }}</span>
                 </div>
               </div>
+              <div class="meta-item full-width" v-if="typeof selectedEvent.latitude === 'number' && typeof selectedEvent.longitude === 'number'">
+                <MapView :lat="selectedEvent.latitude" :lng="selectedEvent.longitude" :popupText="selectedEvent.title" />
+              </div>
               <div class="meta-item full-width">
                 <el-icon><User /></el-icon>
                 <div>
@@ -258,6 +261,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import MapView from '@/components/MapView.vue'
 import StudentLayout from '@/layouts/StudentLayout.vue'
 import EventCard from '@/components/EventCard.vue'
 import { useEventStore } from '@/stores/eventStore'
