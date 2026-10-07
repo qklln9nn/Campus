@@ -26,7 +26,11 @@ export interface ModerationEvent {
   submittedDate: string
   status: EventModerationStatus
   capacity: number
+  registeredCount: number
+  waitlistCount: number
   rejectionReason: string
+  latitude?: number
+  longitude?: number
 }
 
 export interface ModerationReport {
@@ -56,6 +60,7 @@ interface RawModerationEvent {
   status: string
   rejection_reason: string | null
   created_at: string
+  event_locations?: { latitude: number, longitude: number } | null
   organiser: Relation
 }
 
@@ -103,7 +108,7 @@ export const useModerationStore = defineStore('moderation', () => {
       const { data, error } = await supabase
         .from('events')
         .select(
-          'id,title,description,category,event_date,start_time,location,online_link,capacity,image_url,status,rejection_reason,created_at,organiser:profiles!events_organiser_id_fkey(full_name,email)',
+          'id,title,description,category,event_date,start_time,location,online_link,capacity,registered_count,waitlist_count,image_url,status,rejection_reason,created_at,organiser:profiles!events_organiser_id_fkey(full_name,email),event_locations(latitude,longitude)',
         )
         .order('created_at', { ascending: false })
 
@@ -134,7 +139,11 @@ export const useModerationStore = defineStore('moderation', () => {
             submittedDate: new Date(row.created_at).toLocaleDateString(),
             status,
             capacity: row.capacity,
+            registeredCount: row.registered_count || 0,
+            waitlistCount: row.waitlist_count || 0,
             rejectionReason: row.rejection_reason ?? '',
+            latitude: row.event_locations?.latitude,
+            longitude: row.event_locations?.longitude,
           }
         })
     } catch (error) {

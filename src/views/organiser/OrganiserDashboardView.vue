@@ -12,13 +12,16 @@
         </el-button>
       </header>
 
-      <dl class="overview" aria-label="Event overview">
-        <div><dt>All Events</dt><dd>{{ ownEvents.length }}</dd></div>
-        <div><dt>Open Events</dt><dd>{{ openEvents.length }}</dd></div>
-        <div><dt>Pending Events</dt><dd>{{ pendingEvents.length }}</dd></div>
-        <div><dt>Cancel Events</dt><dd>{{ cancelledEvents.length }}</dd></div>
-        <div><dt>On Waitlists</dt><dd>{{ waitlistCount }}</dd></div>
-      </dl>
+      <!-- Data Visualization: Top Trending Events -->
+      <section class="charts-container" aria-label="Dashboard Charts">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>My Trending Events</h3>
+            <span class="chart-subtitle">Based on registrations and waitlist</span>
+          </div>
+          <v-chart class="chart" :option="trendingChartOption" autoresize />
+        </div>
+      </section>
 
       <section class="events-panel" aria-label="Your events">
         <!-- event list 顶部分类标签栏 -->
@@ -197,6 +200,17 @@ import { useEventStore } from '@/stores/eventStore'
 import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
 import { cancelOwnedEvent, completeFinishedOwnedEvents,} from '@/lib/organiserEvents'
 import type { EventItem, EventStatus } from '@/types/event'
+import { supabase } from '@/lib/supabase'
+
+// ECharts imports
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { BarChart } from 'echarts/charts'
+import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
+import VChart from 'vue-echarts'
+
+// Register ECharts components
+use([CanvasRenderer, BarChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent])
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -272,6 +286,41 @@ const waitlistCount = computed(() => ownEvents.value.reduce((sum, event) => sum 
 function countStatus(status: string) {
   return ownEvents.value.filter(event => status === 'all' || statusGroup(event.status) === status).length
 }
+
+// === Chart Options (Registration Based) ===
+const trendingChartOption = computed(() => {
+  // Get top 5 events by actual registrations + waitlist
+  const eventsWithScore = ownEvents.value.map(e => ({
+    title: e.title.length > 35 ? e.title.substring(0, 35) + '...' : e.title,
+    // Score based on real attendance numbers
+    score: (e.registeredCount || 0) + (e.waitlistCount || 0) * 0.5
+  }))
+  .filter(e => e.score > 0) 
+  .sort((a, b) => b.score - a.score)
+  .slice(0, 5);
+
+  const titles = eventsWithScore.map(e => e.title).reverse();
+  const views = eventsWithScore.map(e => e.score).reverse();
+
+  return {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: '2%', right: '8%', bottom: '3%', top: '5%', containLabel: true },
+    xAxis: { type: 'value', name: 'Attendees' },
+    yAxis: { type: 'category', data: titles },
+    series: [
+      {
+        name: 'Attendees (Reg + Waitlist)',
+        type: 'bar',
+        data: views,
+        itemStyle: { 
+          color: '#3b82f6', // bright blue
+          borderRadius: [0, 4, 4, 0] 
+        },
+        label: { show: true, position: 'right' }
+      }
+    ]
+  }
+})
 
 // <Search the key word>
 const filteredEvents = computed(() => {
@@ -490,6 +539,11 @@ async function loadAttendees() {
   if (!selectedId.value || eventStore.attendeesLoading) return
   await eventStore.fetchEventAttendees(selectedId.value)
 }
+
+import { onMounted } from 'vue'
+onMounted(async () => {
+  // No need to fetch real analytics anymore!
+})
 </script>
 
 <style scoped src="@/assets/styles/OrganiserDashboard.css"></style>

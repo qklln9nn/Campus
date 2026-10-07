@@ -383,3 +383,10 @@
     flex: 1;
   }
 }
+
+.charts-container { margin-bottom: 24px; }
+.chart-card { background: #fff; border-radius: 16px; padding: 20px; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.02); height: 350px; display: flex; flex-direction: column; }
+.chart-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+.chart-header h3 { margin: 0; font-size: 1.1rem; color: #1e293b; }
+.chart-subtitle { font-size: 0.85rem; color: #94a3b8; }
+.chart { flex: 1; width: 100%; }
