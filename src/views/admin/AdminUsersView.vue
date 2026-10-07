@@ -138,13 +138,20 @@ const adminStore = useAdminStore()
 const authStore = useAuthStore()
 const { users, loadingUsers, errorMessage } = storeToRefs(adminStore)
 
+// Search query for filtering users by name, email, or student ID
 const searchQuery = ref('')
+// Role filter for displaying specific user roles
 const roleFilter = ref('')
+// Controls the visibility of the role edit dialog
 const dialogVisible = ref(false)
+// Holds the currently selected user for editing
 const editingUser = ref<AdminUser | null>(null)
+// Stores the newly selected role for the user
 const selectedNewRole = ref<AdminUserRole>('student')
+// Tracks the ID of the user currently being updated
 const updatingUserId = ref<string | null>(null)
 
+// Computed property to filter users based on search query and role filter
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
     if (roleFilter.value && user.role !== roleFilter.value) return false
@@ -160,6 +167,7 @@ const filteredUsers = computed(() => {
   })
 })
 
+// Returns the appropriate Element Plus tag type for a given user role
 function getRoleTagType(role: string) {
   switch (role) {
     case 'admin': return 'danger'
@@ -169,12 +177,14 @@ function getRoleTagType(role: string) {
   }
 }
 
+// Opens the modal to change a user's role
 function openRoleModal(user: AdminUser) {
   editingUser.value = user
   selectedNewRole.value = user.role
   dialogVisible.value = true
 }
 
+// Saves the new role assigned to the user
 async function saveRoleChange() {
   if (editingUser.value) {
     const user = editingUser.value
@@ -191,6 +201,7 @@ async function saveRoleChange() {
   }
 }
 
+// Toggles the user's account status between active and suspended
 async function toggleStatus(user: AdminUser) {
   const newStatus = user.status === 'active' ? 'suspended' : 'active'
   const actionText = newStatus === 'suspended' ? 'Suspend' : 'Unban'
@@ -212,6 +223,7 @@ async function toggleStatus(user: AdminUser) {
   }
 }
 
+// Loads the list of user accounts from the store
 async function loadUsers() {
   try {
     await adminStore.fetchUsers()
