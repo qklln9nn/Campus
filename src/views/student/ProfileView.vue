@@ -177,7 +177,9 @@ import { useAuthStore } from '@/stores/authStore'
 
 const authStore = useAuthStore()
 
+//fetch user data
 const user = computed(() => authStore.currentUser)
+//We can change [name,grade,major,interst,clubs,Available time and notification]
 
 //this computed property is used to determine the layout of the profile page
 //if the user role is 'ORGANISER', it will display the organiser layout
@@ -242,6 +244,7 @@ const hasChanges = computed(() => {
 
 // 把输入框里的字全部恢复成数据库里原本保存的值
 function resetForm() {
+  //Copy the data from the Store
   profileForm.name = user.value?.name || ''
   profileForm.major = user.value?.major || ''
   profileForm.grade = user.value?.grade || ''
@@ -259,6 +262,8 @@ watch(
 )
 
 async function saveProfile() {
+  //Validate and save the profile form
+  //If the user exist; if issaving; if the name is blank; if there is a change
   if (!user.value || isSaving.value) return
 
   const name = profileForm.name.trim()
@@ -278,6 +283,7 @@ async function saveProfile() {
   //then the user profile will be updated in the frontend
   try {
     await authStore.updateProfile({
+      //call this function
       name,
       major: profileForm.major.trim(),
       ...(user.value.role === 'STUDENT'
