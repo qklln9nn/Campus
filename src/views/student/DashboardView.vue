@@ -24,9 +24,14 @@
     <h3 style="margin:0; display:flex; align-items:center; gap:8px; color: #1e293b; font-size: 18px;">
       <el-icon><MagicStick /></el-icon> AI Recommendations For You
     </h3>
-    <el-button type="primary" :loading="isAiLoading" @click="generateRecommendations">
-      Generate Suggestions
-    </el-button>
+    <div style="display: flex; gap: 8px;">
+      <el-button type="primary" :loading="isAiLoading" @click="generateRecommendations">
+        Generate Suggestions
+      </el-button>
+      <el-button type="success" :loading="isDigestLoading" @click="generateWeeklyDigest">
+        AI Weekly Digest
+      </el-button>
+    </div>
   </div>
 
   <p v-if="aiReason" style="margin: 0 0 16px 0; color: #475569; font-size: 14px; font-style: italic;">
@@ -41,6 +46,21 @@
       @toggle-bookmark="handleToggleBookmark" />
     </el-col>
   </el-row>
+</div>
+
+<div
+  v-if="eventStore.aiSearchActive"
+  style="margin-bottom: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;"
+>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <span style="font-weight: 600; color: #166534; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+      <el-icon><MagicStick /></el-icon> AI Search:
+    </span>
+    <span style="color: #15803d; font-size: 13px;">{{ eventStore.aiSearchSummary }}</span>
+  </div>
+  <el-button link type="danger" size="small" @click="eventStore.clearAiSearch">
+    Reset / View All
+  </el-button>
 </div>
 
 <section class="control-bar">
@@ -252,6 +272,71 @@
           </div>
         </template>
       </el-dialog>
+
+      <el-dialog
+        v-model="showDigestModal"
+        title="📅 AI Weekly Event Digest & Schedule"
+        width="680px"
+        align-center
+        destroy-on-close
+      >
+        <div style="max-height: 520px; overflow-y: auto; padding-right: 4px;">
+          <template v-if="weeklyDigestData">
+            <div style="margin-bottom: 20px;">
+              <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <el-icon><Calendar /></el-icon> Upcoming Confirmed Events
+              </h4>
+              <div v-if="!weeklyDigestData.confirmedEvents || weeklyDigestData.confirmedEvents.length === 0" style="padding: 24px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 8px;">
+                No registered events confirmed for this week.
+              </div>
+              <div v-else style="display: flex; flex-direction: column; gap: 12px;">
+                <div
+                  v-for="(ev, idx) in weeklyDigestData.confirmedEvents"
+                  :key="idx"
+                  style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);"
+                >
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-weight: 600; font-size: 15px; color: #0f172a;">{{ ev.title }}</span>
+                    <el-tag size="small" type="primary" effect="plain">{{ ev.date }}</el-tag>
+                  </div>
+                  <div style="font-size: 13px; color: #64748b; display: flex; gap: 16px; margin-bottom: 6px;">
+                    <span>🕒 {{ ev.time }}</span>
+                    <span>📍 {{ ev.location }}</span>
+                  </div>
+                  <div v-if="ev.preparation" style="background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 8px 12px; border-radius: 6px; font-size: 13px; line-height: 1.4;">
+                    <strong>💡 Preparation:</strong> {{ ev.preparation }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="weeklyDigestData.workloadSummary" style="margin-bottom: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 16px;">
+              <h4 style="margin: 0 0 6px 0; color: #166534; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <el-icon><Check /></el-icon> Workload Balance
+              </h4>
+              <p style="margin: 0; color: #15803d; font-size: 13px; line-height: 1.5;">{{ weeklyDigestData.workloadSummary }}</p>
+            </div>
+
+            <div v-if="weeklyDigestData.alerts && weeklyDigestData.alerts.length" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px;">
+              <h4 style="margin: 0 0 6px 0; color: #1e40af; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                <el-icon><Bell /></el-icon> Alerts & Reminders
+              </h4>
+              <ul style="margin: 0; padding-left: 18px; color: #1d4ed8; font-size: 13px; line-height: 1.5;">
+                <li v-for="(alert, idx) in weeklyDigestData.alerts" :key="idx" style="margin-bottom: 4px;">{{ alert }}</li>
+              </ul>
+            </div>
+          </template>
+
+          <template v-else>
+            <div style="white-space: pre-wrap; line-height: 1.6; font-size: 14px; color: #334155; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              {{ weeklyDigestContent }}
+            </div>
+          </template>
+        </div>
+        <template #footer>
+          <el-button type="primary" @click="showDigestModal = false">Close</el-button>
+        </template>
+      </el-dialog>
     </div>
   </StudentLayout>
 </template>
@@ -264,7 +349,7 @@ import { useEventStore } from '@/stores/eventStore'
 import { useCategoryStore } from '@/stores/categoryStore'
 import { useAuthStore } from '@/stores/authStore'
 import type { EventItem } from '@/types/event'
-import { Refresh, Calendar, Location, User, MagicStick } from '@element-plus/icons-vue'
+import { Refresh, Calendar, Location, User, MagicStick, Bell, Check } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { DEFAULT_FALLBACK_POSTER, handlePosterError } from '@/lib/posterFallback'
 import { isEventRegistrationOpen } from '@/lib/eventRegistration'
@@ -322,6 +407,76 @@ async function generateRecommendations() {
   }
 }
 
+const isDigestLoading = ref(false)
+const showDigestModal = ref(false)
+const weeklyDigestData = ref<any>(null)
+const weeklyDigestContent = ref('')
+
+async function generateWeeklyDigest() {
+  if (!authStore.currentUser) {
+    ElMessage.warning('Please sign in first.')
+    return
+  }
+  isDigestLoading.value = true
+  const now = new Date()
+  const todayStr = now.toISOString().split('T')[0]
+  const nowTime = now.getTime()
+
+  const registered = eventStore.events
+    .filter(e => e.isRegistered)
+    .filter(e => !e.startsAt || new Date(e.startsAt).getTime() >= nowTime - 86400000)
+    .sort((a, b) => (a.startsAt || a.startTime || '').localeCompare(b.startsAt || b.startTime || ''))
+    .map(e => ({
+      title: e.title,
+      startTime: e.startTime,
+      date: e.startsAt ? e.startsAt.split('T')[0] : '',
+      location: e.location,
+      description: e.description
+    }))
+  const saved = eventStore.events
+    .filter(e => e.isBookmarked || e.isWaitlisted)
+    .filter(e => !e.startsAt || new Date(e.startsAt).getTime() >= nowTime - 86400000)
+    .sort((a, b) => (a.startsAt || a.startTime || '').localeCompare(b.startsAt || b.startTime || ''))
+    .map(e => ({
+      title: e.title,
+      startTime: e.startTime,
+      date: e.startsAt ? e.startsAt.split('T')[0] : '',
+      location: e.location,
+      status: e.isWaitlisted ? 'Waitlisted' : 'Saved'
+    }))
+
+  try {
+    const { data, error } = await supabase.functions.invoke('ai-weekly-digest', {
+      body: {
+        userName: authStore.currentUser.name,
+        currentDate: todayStr,
+        registeredEvents: registered,
+        savedEvents: saved,
+        availableTime: authStore.currentUser.availableTime || []
+      }
+    })
+    if (!error && (data?.digest || data?.raw)) {
+      if (data.digest && typeof data.digest === 'object') {
+        weeklyDigestData.value = data.digest
+        weeklyDigestContent.value = ''
+      } else {
+        weeklyDigestData.value = null
+        weeklyDigestContent.value = (data.digest || data.raw || '')
+          .replace(/###\s+/g, '')
+          .replace(/\*\*/g, '')
+          .replace(/^-\s+/gm, '• ')
+      }
+      showDigestModal.value = true
+    } else {
+      throw error || new Error('Failed to generate weekly digest')
+    }
+  } catch (error: any) {
+    ElMessage.error(error?.message || 'Failed to generate weekly digest')
+  } finally {
+    isDigestLoading.value = false
+  }
+}
+
 // Dashboard initialises its data
 //When the dashboard mounts
 // I reset the previous filters and load events and categories in parallel
@@ -376,6 +531,7 @@ const isSubmitting = ref(false)
 // Computed active filter status
 const hasActiveFilter = computed(() => {
   return (
+    eventStore.aiSearchActive ||
     eventStore.searchQuery !== '' ||
     eventStore.selectedCategory !== 'All' ||
     eventStore.activeTab !== 'all'
@@ -510,6 +666,7 @@ watch(
 
 // Reset filters action
 function resetFilters() {
+  eventStore.clearAiSearch()
   eventStore.searchQuery = ''
   eventStore.selectedCategory = 'All'
   eventStore.activeTab = 'all'
