@@ -210,13 +210,6 @@ const profileForm = reactive({
   interests: [] as string[],
   clubs: [] as string[],
   availableTime: [] as string[],
-  notificationPreferences: {
-    emailAlerts: true,
-    pushNotifications: true,
-    eventReminders: true,
-    waitlistUpdates: true,
-    weeklyDigest: false,
-  }
 })
 
 const isSaving = ref(false)
@@ -245,8 +238,7 @@ const hasChanges = computed(() => {
     (user.value.role === 'STUDENT' && profileForm.grade !== (user.value.grade || '')) ||
     JSON.stringify(profileForm.interests) !== JSON.stringify(user.value.interests) ||
     JSON.stringify(profileForm.clubs) !== JSON.stringify(user.value.clubs) ||
-    JSON.stringify(profileForm.availableTime) !== JSON.stringify(user.value.availableTime) ||
-    JSON.stringify(profileForm.notificationPreferences) !== JSON.stringify(user.value.notificationPreferences)
+    JSON.stringify(profileForm.availableTime) !== JSON.stringify(user.value.availableTime)
   )
 })
 
@@ -259,13 +251,6 @@ function resetForm() {
   profileForm.interests = [...(user.value?.interests || [])]
   profileForm.clubs = [...(user.value?.clubs || [])]
   profileForm.availableTime = [...(user.value?.availableTime || [])]
-  profileForm.notificationPreferences = {
-    emailAlerts: user.value?.notificationPreferences?.emailAlerts ?? true,
-    pushNotifications: user.value?.notificationPreferences?.pushNotifications ?? true,
-    eventReminders: user.value?.notificationPreferences?.eventReminders ?? true,
-    waitlistUpdates: user.value?.notificationPreferences?.waitlistUpdates ?? true,
-    weeklyDigest: user.value?.notificationPreferences?.weeklyDigest ?? false,
-  }
   nameError.value = ''
 }
 
@@ -307,7 +292,6 @@ async function saveProfile() {
       interests: profileForm.interests,
       clubs: profileForm.clubs,
       availableTime: profileForm.availableTime,
-      notificationPreferences: profileForm.notificationPreferences,
     })
 
     resetForm()

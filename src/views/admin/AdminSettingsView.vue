@@ -116,12 +116,14 @@ const InputRef = ref<HTMLInputElement>()
 const saving = ref(false)
 const pageError = ref('')
 
+// Reactive object holding the form settings
 const formSettings = reactive({
   requireApproval: true,
   reportThreshold: 3,
   adminEmail: '',
 })
 
+// Disable an active event category
 async function removeCategory(slug: string, name: string) {
   try {
     await categoryStore.setCategory(name, false, slug)
@@ -131,6 +133,7 @@ async function removeCategory(slug: string, name: string) {
   }
 }
 
+// Restore a previously disabled event category
 async function restoreCategory(slug: string, name: string) {
   try {
     await categoryStore.setCategory(name, true, slug)
@@ -140,6 +143,7 @@ async function restoreCategory(slug: string, name: string) {
   }
 }
 
+// Display the input field for adding a new category
 function showInput() {
   inputVisible.value = true
   nextTick(() => {
@@ -147,6 +151,7 @@ function showInput() {
   })
 }
 
+// Handle the confirmation of adding a new category
 async function handleInputConfirm() {
   const name = inputValue.value.trim()
   inputVisible.value = false
@@ -160,6 +165,7 @@ async function handleInputConfirm() {
   }
 }
 
+// Save the system configuration settings
 async function saveSettings() {
   saving.value = true
   try {
@@ -172,6 +178,7 @@ async function saveSettings() {
   }
 }
 
+// Load the initial settings and categories data
 async function loadSettingsPage() {
   pageError.value = ''
   const results = await Promise.allSettled([

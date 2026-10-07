@@ -48,6 +48,7 @@ interface RawEventRow {
   status: string
   rating_sum?: number | null
   rating_count?: number | null
+  event_locations?: { latitude: number, longitude: number } | null
 }
 
 //If the event ended
@@ -377,6 +378,8 @@ const userRegisteredCount = computed(() =>
       posterUrl: string
       organiserName?: string
       isDraft?: boolean
+      latitude?: number
+      longitude?: number
     }
   ): Promise<{ success: boolean; event?: EventItem; message?: string }> {
     const authStore = useAuthStore()
@@ -450,6 +453,16 @@ const userRegisteredCount = computed(() =>
       }
 
       if (dbData) {
+        if (typeof eventPayload.latitude === 'number' && typeof eventPayload.longitude === 'number') {
+          const { error: locErr } = await supabase.from('event_locations').insert({
+            event_id: dbData.id,
+            latitude: eventPayload.latitude,
+            longitude: eventPayload.longitude
+          })
+          if (locErr) {
+            console.error('Failed to save event location:', locErr)
+          }
+        }
         await fetchEventsFromSupabase()
         const createdEvent = events.value.find((e) => e.id === dbData.id) || events.value[0]
         return { success: true, event: createdEvent }
@@ -480,6 +493,8 @@ const userRegisteredCount = computed(() =>
       posterUrl: string
       organiserName?: string
       isDraft?: boolean
+      latitude?: number
+      longitude?: number
     }
   ): Promise<{ success: boolean; message?: string }> {
     const eventStatus = eventPayload.isDraft ? 'draft' : 'pending'
@@ -522,6 +537,8 @@ const userRegisteredCount = computed(() =>
       if (eventPayload.organiserName) {
         target.organiser.name = eventPayload.organiserName
       }
+      target.latitude = eventPayload.latitude
+      target.longitude = eventPayload.longitude
     }
 
     const safeImageUrl = eventPayload.posterUrl.trim()
@@ -548,6 +565,23 @@ const userRegisteredCount = computed(() =>
           console.warn('Supabase updateEvent error:', error)
           return { success: false, message: error.message }
         } else {
+          if (typeof eventPayload.latitude === 'number' && typeof eventPayload.longitude === 'number') {
+            const { data: existingLoc } = await supabase.from('event_locations').select('event_id').eq('event_id', eventId).maybeSingle()
+            if (existingLoc) {
+              await supabase.from('event_locations').update({
+                latitude: eventPayload.latitude,
+                longitude: eventPayload.longitude
+              }).eq('event_id', eventId)
+            } else {
+              await supabase.from('event_locations').insert({
+                event_id: eventId,
+                latitude: eventPayload.latitude,
+                longitude: eventPayload.longitude
+              })
+            }
+          } else if (eventPayload.latitude === undefined && eventPayload.longitude === undefined) {
+             // Maybe they removed it? Or maybe we just ignore. Let's just ignore if not provided.
+          }
           await fetchEventsFromSupabase()
         }
       } catch (err: unknown) {
@@ -611,7 +645,7 @@ const userRegisteredCount = computed(() =>
       // *Step2:  Fetch Events directly from Supabase events table without restrictive foreign key join requirement
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select('*, event_locations(latitude, longitude)')
         //order by created time
         .order('created_at', { ascending: false })
 
@@ -816,6 +850,8 @@ const userRegisteredCount = computed(() =>
             //Fetch the data for the rating
             ratingSum: item.rating_sum || 0,
             ratingCount: item.rating_count || 0,
+            latitude: item.event_locations?.latitude,
+            longitude: item.event_locations?.longitude,
           }
         })
       }
