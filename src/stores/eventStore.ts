@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { ElNotification } from 'element-plus'
 import { supabase } from '@/lib/supabase'
 import { isEventRegistrationOpen } from '@/lib/eventRegistration'
+import { requestSubmissionModeration } from '@/lib/aiModeration'
 import { categoryLabel, categorySlug } from '@/lib/category'
 import { useAuthStore } from '@/stores/authStore'
 import type { CategoryType, EventItem, EventStatus } from '@/types/event'
@@ -462,6 +463,7 @@ const userRegisteredCount = computed(() =>
       }
 
       if (dbData) {
+        if (eventStatus === 'pending') requestSubmissionModeration(dbData.id)
         if (typeof eventPayload.latitude === 'number' && typeof eventPayload.longitude === 'number') {
           const { error: locErr } = await supabase.from('event_locations').insert({
             event_id: dbData.id,
@@ -592,6 +594,7 @@ const userRegisteredCount = computed(() =>
              // Maybe they removed it? Or maybe we just ignore. Let's just ignore if not provided.
           }
           await fetchEventsFromSupabase()
+          if (eventStatus === 'pending') requestSubmissionModeration(eventId)
         }
       } catch (err: unknown) {
         console.warn('Supabase updateEvent exception:', err)
@@ -626,6 +629,7 @@ const userRegisteredCount = computed(() =>
           return { success: false, message: error.message }
         } else {
           await fetchEventsFromSupabase()
+          requestSubmissionModeration(eventId)
         }
       } catch (err: unknown) {
         if (event && previousStatus) event.status = previousStatus
@@ -1092,7 +1096,7 @@ const userRegisteredCount = computed(() =>
             id: e.id,
             title: e.title,
             category: e.category,
-            event_date: e.eventDate,
+            event_date: e.startTime.slice(0, 10),
             location: e.location,
             description: e.description
           }))

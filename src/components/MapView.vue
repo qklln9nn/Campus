@@ -5,12 +5,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, onMounted, watch, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 // Fix Leaflet's default icon paths issue
-delete (L.Icon.Default.prototype as any)._getIconUrl
+delete (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
   iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
@@ -24,8 +24,8 @@ const props = defineProps<{
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
-const map = ref<L.Map | null>(null)
-const marker = ref<L.Marker | null>(null)
+const map = shallowRef<L.Map | null>(null)
+const marker = shallowRef<L.Marker | null>(null)
 
 onMounted(() => {
   if (!mapContainer.value) return

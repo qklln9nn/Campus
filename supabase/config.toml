@@ -2,3 +2,7 @@ project_id = "campus-eventhub"
 
 [functions.ai-summary]
 verify_jwt = false
+
+# ai-moderation validates the bearer token with auth.getUser and checks the role/owner.
+[functions.ai-moderation]
+verify_jwt = false
