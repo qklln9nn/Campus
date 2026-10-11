@@ -2,10 +2,14 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
 import { supabase } from '@/lib/supabase'
-import type { AiReview } from '@/lib/aiModeration'
 
 export type EventModerationStatus =
-  'draft' | 'pending' | 'published' | 'rejected' | 'cancelled' | 'completed'
+  | 'draft'
+  | 'pending'
+  | 'published'
+  | 'rejected'
+  | 'cancelled'
+  | 'completed'
 
 export type ReportStatus = 'pending' | 'reviewing' | 'resolved' | 'dismissed'
 
@@ -52,14 +56,11 @@ interface RawModerationEvent {
   location: string | null
   online_link: string | null
   capacity: number
-  registered_count?: number
-  waitlist_count?: number
   image_url: string | null
   status: string
   rejection_reason: string | null
   created_at: string
-  event_locations?:
-    { latitude: number; longitude: number } | { latitude: number; longitude: number }[] | null
+  event_locations?: { latitude: number, longitude: number } | null
   organiser: Relation
 }
 
@@ -92,104 +93,6 @@ export const useModerationStore = defineStore('moderation', () => {
   const loadingReports = ref(false)
   const submittingReport = ref(false)
   const errorMessage = ref('')
-  const aiReviews = ref<Record<string, AiReview>>({})
-  const analyzingEventIds = ref(new Set<string>())
-  const aiErrors = ref<Record<string, string>>({})
-  const aiErrorMessage = ref('')
-  const adoptingEventId = ref('')
-
-  async function fetchAiReviews(): Promise<void> {
-    try {
-      const ids = events.value.map((event) => event.id)
-      const reviews: AiReview[] = []
-      // Keep the PostgREST URL below gateway limits for large administrator queues.
-      for (let offset = 0; offset < Math.max(1, ids.length); offset += 100) {
-        const { data, error } = await supabase
-          .from('event_ai_reviews')
-          .select('event_id,status,result,error_message,updated_at')
-          .in('event_id', ids.slice(offset, offset + 100))
-        if (error) throw error
-        reviews.push(...((data ?? []) as AiReview[]))
-      }
-      aiReviews.value = Object.fromEntries(reviews.map((review) => [review.event_id, review]))
-      aiErrorMessage.value = ''
-    } catch (error) {
-      aiErrorMessage.value = messageFrom(
-        error,
-        'Unable to load AI reviews. Check the moderation migration and deployment.',
-      )
-      throw error
-    }
-  }
-
-  async function analyzeEvent(eventId: string, force = false): Promise<void> {
-    if (analyzingEventIds.value.has(eventId)) return
-    analyzingEventIds.value.add(eventId)
-    delete aiErrors.value[eventId]
-    try {
-      const { data, error } = await supabase.functions.invoke('ai-moderation', {
-        body: { eventId, force },
-      })
-      if (error) {
-        const context = 'context' in error ? error.context : null
-        if (context instanceof Response) {
-          const body = await context.json().catch(() => null)
-          throw new Error(
-            body?.error || 'AI moderation is unavailable. Please retry or review manually.',
-          )
-        }
-        throw error
-      }
-      if (data?.error) throw new Error(data.error)
-      if (data?.review) aiReviews.value[eventId] = data.review as AiReview
-      else await fetchAiReviews()
-    } catch (error) {
-      aiErrors.value[eventId] = messageFrom(
-        error,
-        'AI moderation failed. Please retry or review manually.',
-      )
-    } finally {
-      analyzingEventIds.value.delete(eventId)
-    }
-  }
-
-  async function analyzePendingEvents(): Promise<void> {
-    const queue = events.value.filter((event) => {
-      const review = aiReviews.value[event.id]
-      return (
-        event.status === 'pending' &&
-        !aiErrors.value[event.id] &&
-        (!review ||
-          review.status === 'queued' ||
-          (review.status === 'processing' && Date.now() - Date.parse(review.updated_at) > 300000))
-      )
-    })
-    // Bound provider load while making all queued submissions progress.
-    async function worker() {
-      for (let event = queue.shift(); event; event = queue.shift()) await analyzeEvent(event.id)
-    }
-    await Promise.all([worker(), worker()])
-  }
-
-  async function adoptAiSuggestion(
-    eventId: string,
-    action: 'description' | 'reject',
-  ): Promise<void> {
-    if (adoptingEventId.value) return
-    adoptingEventId.value = eventId
-    try {
-      const { error } = await supabase.rpc('adopt_event_ai_suggestion', {
-        p_event_id: eventId,
-        p_action: action,
-      })
-      if (error) throw error
-      await fetchEvents()
-      await fetchAiReviews()
-      if (action === 'description') void analyzeEvent(eventId)
-    } finally {
-      adoptingEventId.value = ''
-    }
-  }
 
   const pendingEventCount = computed(
     () => events.value.filter((event) => event.status === 'pending').length,
@@ -212,20 +115,13 @@ export const useModerationStore = defineStore('moderation', () => {
       if (error) throw error
       const rows = (data ?? []) as RawModerationEvent[]
 
-      const deletedEventIds = new Set<string>(
-        JSON.parse(localStorage.getItem('campus_deleted_events') || '[]'),
-      )
-      const cancelledEventIds = new Set<string>(
-        JSON.parse(localStorage.getItem('campus_cancelled_events') || '[]'),
-      )
+      const deletedEventIds = new Set<string>(JSON.parse(localStorage.getItem('campus_deleted_events') || '[]'))
+      const cancelledEventIds = new Set<string>(JSON.parse(localStorage.getItem('campus_cancelled_events') || '[]'))
 
       events.value = rows
         .filter((row) => !deletedEventIds.has(row.id))
         .map((row) => {
           const organiser = firstRelation(row.organiser)
-          const coordinates = Array.isArray(row.event_locations)
-            ? row.event_locations[0]
-            : row.event_locations
           let status = row.status as EventModerationStatus
           if (cancelledEventIds.has(row.id) || row.status?.toLowerCase() === 'cancelled') {
             status = 'cancelled'
@@ -246,8 +142,8 @@ export const useModerationStore = defineStore('moderation', () => {
             registeredCount: row.registered_count || 0,
             waitlistCount: row.waitlist_count || 0,
             rejectionReason: row.rejection_reason ?? '',
-            latitude: coordinates?.latitude,
-            longitude: coordinates?.longitude,
+            latitude: row.event_locations?.latitude,
+            longitude: row.event_locations?.longitude,
           }
         })
     } catch (error) {
@@ -273,10 +169,7 @@ export const useModerationStore = defineStore('moderation', () => {
   }
 
   async function cancelEvent(eventId: string): Promise<void> {
-    const { error } = await supabase
-      .from('events')
-      .update({ status: 'cancelled' })
-      .eq('id', eventId)
+    const { error } = await supabase.from('events').update({ status: 'cancelled' }).eq('id', eventId)
     if (error) throw error
     await fetchEvents()
   }
@@ -294,14 +187,14 @@ export const useModerationStore = defineStore('moderation', () => {
       if (!data.user) throw new Error('Please sign in before reporting an event.')
 
       const { error } = await supabase
-        //Inserts the report into the reports table. And the SQL do the next.
-        .from('reports')
-        .insert({
-          reporter_id: data.user.id,
-          event_id: eventId,
-          reason: reason.trim(),
-          description: description.trim(),
-        })
+      //Inserts the report into the reports table. And the SQL do the next.
+      .from('reports')
+      .insert({
+        reporter_id: data.user.id,
+        event_id: eventId,
+        reason: reason.trim(),
+        description: description.trim(),
+      })
       if (error?.code === '23505') {
         throw new Error('You have already reported this event.')
       }
@@ -347,6 +240,7 @@ export const useModerationStore = defineStore('moderation', () => {
   }
 
   async function moderateReport(
+
     reportId: string,
     resolution: Exclude<ReportStatus, 'pending'>,
     takeDownEvent = false,
@@ -367,15 +261,6 @@ export const useModerationStore = defineStore('moderation', () => {
     loadingReports,
     submittingReport,
     errorMessage,
-    aiReviews,
-    analyzingEventIds,
-    aiErrors,
-    aiErrorMessage,
-    adoptingEventId,
-    fetchAiReviews,
-    analyzeEvent,
-    analyzePendingEvents,
-    adoptAiSuggestion,
     pendingEventCount,
     pendingReportCount,
     fetchEvents,

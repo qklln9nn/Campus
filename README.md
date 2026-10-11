@@ -32,9 +32,6 @@ npm install
 Configure Supabase Auth and apply the database migrations by following
 [docs/auth-setup.md](docs/auth-setup.md).
 
-For AI event safety moderation, quality scoring and semantic deduplication deployment,
-see [docs/ai-moderation.md](docs/ai-moderation.md).
-
 ### Compile and Hot-Reload for Development
 
 ```sh

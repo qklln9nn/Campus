@@ -330,21 +330,6 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function requestPasswordReset(email: string): Promise<void> {
-    isLoading.value = true
-    clearError()
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-      if (error) throw error
-    } catch (error) {
-      throw setError(error, 'Unable to request password recovery.')
-    } finally {
-      isLoading.value = false
-    }
-  }
-
   async function updatePassword(password: string): Promise<void> {
     if (!isPasswordRecovery.value || !isAuthenticated.value) {
       throw setError(
@@ -446,7 +431,6 @@ export const useAuthStore = defineStore('auth', () => {
     initializeAuth,
     login,
     register,
-    requestPasswordReset,
     updatePassword,
     updateProfile,
     logout,

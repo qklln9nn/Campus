@@ -557,6 +557,10 @@ async function loadAttendees() {
   await eventStore.fetchEventAttendees(selectedId.value)
 }
 
+import { onMounted } from 'vue'
+onMounted(async () => {
+  // No need to fetch real analytics anymore!
+})
 </script>
 
 <style scoped src="@/assets/styles/OrganiserDashboard.css"></style>

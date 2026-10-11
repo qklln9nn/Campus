@@ -8,14 +8,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, onMounted, watch, onBeforeUnmount } from 'vue'
+import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch'
 import 'leaflet-geosearch/dist/geosearch.css'
 
 // Fix Leaflet's default icon paths issue with webpack/vite
-delete (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl
+delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
   iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
@@ -32,8 +32,8 @@ const emit = defineEmits<{
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
-const map = shallowRef<L.Map | null>(null)
-const marker = shallowRef<L.Marker | null>(null)
+const map = ref<L.Map | null>(null)
+const marker = ref<L.Marker | null>(null)
 const selectedLocation = ref<{ lat: number; lng: number } | null>(props.modelValue || null)
 
 // Campus default center (can be customized)
@@ -68,7 +68,7 @@ onMounted(() => {
   })
 
   const provider = new OpenStreetMapProvider()
-  const searchControl = GeoSearchControl({
+  const searchControl = new GeoSearchControl({
     provider: provider,
     style: 'bar',
     showMarker: false,
@@ -77,13 +77,12 @@ onMounted(() => {
     animateZoom: true,
     keepResult: true,
     searchLabel: 'Enter address or building name'
-  }) as L.Control
+  }) as any // Cast to any to avoid type issues with leaflet-geosearch plugin
 
   map.value.addControl(searchControl)
 
-  map.value.on('geosearch/showlocation', (e: L.LeafletEvent) => {
-    const { location } = e as L.LeafletEvent & { location: { x: number; y: number } }
-    const newLoc = { lat: location.y, lng: location.x }
+  map.value.on('geosearch/showlocation', (e: any) => {
+    const newLoc = { lat: e.location.y, lng: e.location.x }
     selectedLocation.value = newLoc
     
     if (marker.value && map.value) {
