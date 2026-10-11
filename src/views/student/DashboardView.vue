@@ -426,28 +426,50 @@ async function generateWeeklyDigest() {
   const todayStr = now.toISOString().split('T')[0]
   const nowTime = now.getTime()
 
+  const sevenDaysLaterTime = nowTime + 7 * 86400000
+
   const registered = eventStore.events
     .filter(e => e.isRegistered)
-    .filter(e => !e.startsAt || new Date(e.startsAt).getTime() >= nowTime - 86400000)
+    .filter(e => {
+      if (!e.startsAt) return false
+      const t = new Date(e.startsAt).getTime()
+      return t >= nowTime - 86400000 && t <= sevenDaysLaterTime
+    })
     .sort((a, b) => (a.startsAt || a.startTime || '').localeCompare(b.startsAt || b.startTime || ''))
-    .map(e => ({
-      title: e.title,
-      startTime: e.startTime,
-      date: e.startsAt ? e.startsAt.split('T')[0] : '',
-      location: e.location,
-      description: e.description
-    }))
+    .map(e => {
+      const d = e.startsAt ? new Date(e.startsAt) : null
+      const formattedDate = d && !isNaN(d.getTime())
+        ? d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        : (e.startsAt ? e.startsAt.split('T')[0] : '')
+      return {
+        title: e.title,
+        startTime: e.startTime,
+        date: formattedDate,
+        location: e.location,
+        description: e.description
+      }
+    })
   const saved = eventStore.events
     .filter(e => e.isBookmarked || e.isWaitlisted)
-    .filter(e => !e.startsAt || new Date(e.startsAt).getTime() >= nowTime - 86400000)
+    .filter(e => {
+      if (!e.startsAt) return false
+      const t = new Date(e.startsAt).getTime()
+      return t >= nowTime - 86400000 && t <= sevenDaysLaterTime
+    })
     .sort((a, b) => (a.startsAt || a.startTime || '').localeCompare(b.startsAt || b.startTime || ''))
-    .map(e => ({
-      title: e.title,
-      startTime: e.startTime,
-      date: e.startsAt ? e.startsAt.split('T')[0] : '',
-      location: e.location,
-      status: e.isWaitlisted ? 'Waitlisted' : 'Saved'
-    }))
+    .map(e => {
+      const d = e.startsAt ? new Date(e.startsAt) : null
+      const formattedDate = d && !isNaN(d.getTime())
+        ? d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        : (e.startsAt ? e.startsAt.split('T')[0] : '')
+      return {
+        title: e.title,
+        startTime: e.startTime,
+        date: formattedDate,
+        location: e.location,
+        status: e.isWaitlisted ? 'Waitlisted' : 'Saved'
+      }
+    })
 
   try {
     const { data, error } = await supabase.functions.invoke('ai-weekly-digest', {
