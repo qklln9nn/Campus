@@ -1092,7 +1092,7 @@ const userRegisteredCount = computed(() =>
             id: e.id,
             title: e.title,
             category: e.category,
-            event_date: e.eventDate,
+            event_date: e.startsAt?.split('T')[0] ?? '',
             location: e.location,
             description: e.description
           }))

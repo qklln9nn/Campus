@@ -566,7 +566,7 @@ async function loadAiSummary() {
   try {
     aiSummary.value = await fetchAiSummary(props.event.id)
   } catch (error) {
-    if (props.event.description || props.event.status === 'completed') {
+    if (props.event.description || props.event.status === 'COMPLETED') {
       aiSummary.value = [
         `🕒 Time & Place: ${props.event.startTime} at ${props.event.location || 'Campus venue'}`,
         `👥 Ideal for: All students interested in ${props.event.category || 'campus'} activities and community events`,
