@@ -12,6 +12,7 @@ function json(body: unknown, status = 200) {
   })
 }
 
+//
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -19,7 +20,7 @@ Deno.serve(async (req) => {
 
   try {
     const { title, description } = await req.json()
-    
+
     if (!title && !description) {
       return json({ error: 'Missing content' }, 400)
     }
@@ -29,7 +30,7 @@ Deno.serve(async (req) => {
       return json({ error: 'Server configuration error' }, 500)
     }
 
-    const systemPrompt = 
+    const systemPrompt =
       'You are a professional event marketing assistant. ' +
       'Rewrite the given draft into an engaging, structured description for a university campus event. ' +
       'Keep it concise but informative. At the end, extract exactly 3 relevant tags (e.g. #Workshop #Tech #FreeFood). ' +
@@ -62,11 +63,11 @@ Deno.serve(async (req) => {
 
     const payload = await aiResponse.json()
     let contentStr: string = payload?.choices?.[0]?.message?.content?.trim() || ''
-    
+
     if (contentStr.startsWith('```json')) {
       contentStr = contentStr.replace(/^```json/, '').replace(/```$/, '').trim()
     }
-    
+
     try {
       const parsed = JSON.parse(contentStr)
       if (parsed.content) {

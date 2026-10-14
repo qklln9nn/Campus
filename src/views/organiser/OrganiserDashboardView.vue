@@ -62,6 +62,23 @@
               <p>{{ event.startTime }} - {{ event.endTime }}</p>
               <p>{{ event.location }}</p>
               <div class="attendance-counts"><strong>{{ event.registeredCount }} / {{ event.capacity }}</strong> registered <span>· {{ event.waitlistCount }} waitlisted</span></div>
+              <div class="event-rating">
+              <template v-if="event.ratingCount && event.ratingCount > 0">
+                <span class="rating-star">★</span>
+
+                <strong>
+                  {{ ((event.ratingSum || 0) / event.ratingCount).toFixed(1) }}
+                </strong>
+
+                <span>
+                  / 5
+                </span>
+              </template>
+
+              <span v-else class="no-rating">
+                No ratings yet
+              </span>
+            </div>
             </div>
 
             <!-- event actions （右侧活动action栏，三种情况，draft, viewAttendees, noAttendeeList）-->
