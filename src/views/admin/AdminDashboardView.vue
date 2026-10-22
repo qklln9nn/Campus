@@ -24,7 +24,6 @@
         <div class="kpi-content">
           <div class="kpi-title">Total Events</div>
           <div class="kpi-value">{{ events.length }}</div>
-          <div class="kpi-trend positive"><el-icon><TopRight /></el-icon> +12% this week</div>
         </div>
       </div>
       <div class="kpi-card success">

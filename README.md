@@ -1,57 +1,170 @@
-# campus-eventhub-frontend
+# 🎓 CampusHub — Campus Event Management Platform
 
-This template should help get you started developing with Vue 3 in Vite.
+A full-stack campus event discovery and management platform built with Vue 3, Supabase, and AI-powered features. Designed for students, event organisers, and administrators to collaborate seamlessly around campus activities.
 
-## Recommended IDE Setup
+---
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## ✨ Features
 
-## Recommended Browser Setup
+### 🎟️ For Students
+- Browse and search campus events with filters (category, date, status)
+- **AI Smart Search** — describe what you're looking for in natural language
+- **AI Event Summary** — get a quick AI-generated brief for any event
+- **AI Weekly Digest** — personalised weekly schedule summary based on your registrations
+- **AI Recommendations** — suggested events tailored to your profile and interests
+- Register, join waitlists, and cancel registrations
+- Save (bookmark) events for later
+- Rate completed events
+- Receive in-app notifications (waitlist promotions, reminders)
+- View events on an interactive map
+- Report inappropriate events
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+### 🗓️ For Organisers
+- Create and publish events (title, date, time, location, category, capacity, poster)
+- Draft, edit, and delete events
+- View attendee lists and manage check-ins
+- Track event statistics (registrations, occupancy rate)
 
-## Type Support for `.vue` Imports in TS
+### 🛡️ For Administrators
+- Dashboard with real-time stats (total events, users, registrations)
+- Charts: events by category (bar + donut pie)
+- Manage all events (publish, reject, cancel, delete)
+- Manage user accounts (role changes, suspension)
+- Review and resolve moderation reports
+- Configure workflow and governance rules (auto-publish, review thresholds)
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+---
 
-## Customize configuration
+## 🛠️ Tech Stack
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+| Layer | Technology |
+|-------|-----------|
+| **Frontend Framework** | Vue 3 (Composition API) + TypeScript |
+| **Build Tool** | Vite |
+| **UI Component Library** | Element Plus |
+| **State Management** | Pinia |
+| **Routing** | Vue Router 5 |
+| **Charts** | ECharts + vue-echarts |
+| **Map** | Leaflet + leaflet-geosearch |
+| **Backend / Database** | Supabase (PostgreSQL + Row Level Security) |
+| **Authentication** | Supabase Auth (email/password + RBAC) |
+| **AI Features** | Supabase Edge Functions (Deno) |
+| **Fonts** | Lexend, Noto Sans SC, OpenDyslexic |
 
-## Project Setup
+---
 
-```sh
+## 🤖 AI Edge Functions
+
+All AI features are powered by Supabase Edge Functions deployed on Deno:
+
+| Function | Description |
+|----------|-------------|
+| `ai-summary` | Generates a short summary for a single event |
+| `ai-smart-search` | Natural language event search across the full event list |
+| `ai-recommendation` | Recommends events based on student profile and history |
+| `ai-weekly-digest` | Generates a personalised weekly event schedule |
+| `ai-copilot` | Assists organisers with event copy and descriptions |
+
+---
+
+## 📁 Project Structure
+
+```
+src/
+├── assets/          # CSS stylesheets and static assets
+├── components/      # Shared components (EventCard, etc.)
+├── layouts/         # Page layout wrappers (Student, Organiser, Admin)
+├── lib/             # Supabase client, AI helpers, utility functions
+├── router/          # Vue Router configuration with RBAC guards
+├── stores/          # Pinia stores (auth, event, moderation)
+├── types/           # TypeScript type definitions
+└── views/
+    ├── auth/        # Login & registration pages
+    ├── student/     # Dashboard, Profile
+    ├── organiser/   # Dashboard, Create Event
+    └── admin/       # Dashboard, Events, Users, Reports, Settings
+
+supabase/
+├── functions/       # AI Edge Functions (Deno / TypeScript)
+└── migrations/      # Database schema migrations
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js `^22.18.0` or `>=24.12.0`
+- A [Supabase](https://supabase.com) project with the schema applied
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/qklln9nn/Campus.git
+cd campus-eventhub-frontend
+```
+
+### 2. Install dependencies
+
+```bash
 npm install
 ```
 
-Configure Supabase Auth and apply the database migrations by following
-[docs/auth-setup.md](docs/auth-setup.md).
+### 3. Configure environment variables
 
-### Compile and Hot-Reload for Development
+Create a `.env.local` file in the project root:
 
-```sh
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### 4. Run the development server
+
+```bash
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+The app will be available at `http://localhost:5173`.
 
-```sh
+---
+
+## 📦 Build for Production
+
+```bash
 npm run build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+The output will be in the `dist/` folder, ready to be deployed to any static hosting service (Vercel, Netlify, Nginx, etc.).
 
-```sh
-npm run test:unit
+### Type check only
+
+```bash
+npm run type-check
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Lint & Format
 
-```sh
-npm run lint
+```bash
+npm run lint     # ESLint + oxlint
+npm run format   # Prettier
 ```
+
+---
+
+## 👥 User Roles
+
+| Role | Access |
+|------|--------|
+| `STUDENT` | Browse events, register, rate, report |
+| `ORGANISER` | All student features + create & manage own events |
+| `ADMIN` | Full platform access including user and content moderation |
+
+Role-based access is enforced both on the frontend (Vue Router guards) and backend (Supabase Row Level Security policies).
+
+---
+
+## 📝 License
+
+This project was developed as a university group project. All rights reserved.
