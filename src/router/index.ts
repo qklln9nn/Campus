@@ -13,7 +13,6 @@ declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     guestOnly?: boolean
-    recoveryOnly?: boolean
     roles?: UserRole[]
   }
 }
@@ -102,11 +101,6 @@ type AuthStore = ReturnType<typeof useAuthStore>
 export function createAuthGuard(authStore: AuthStore) {
   return async (to: RouteLocationNormalized) => {
     if (!authStore.authReady) await authStore.initializeAuth()
-
-    if (to.meta.recoveryOnly && (!authStore.isPasswordRecovery || !authStore.isAuthenticated)) {
-      if (authStore.isAuthenticated) return getRoleHomePath(authStore.userRole)
-      return { name: 'login', query: { recovery: 'invalid' } }
-    }
 
     if (to.meta.guestOnly && authStore.isAuthenticated) {
       return getRoleHomePath(authStore.userRole)

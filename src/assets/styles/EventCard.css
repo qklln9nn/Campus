@@ -380,7 +380,7 @@
 }
 
 /* 响应式调整 */
-@max-width 600px {
+@media (max-width: 600px) {
   .event-card {
     border-radius: 16px;
   }

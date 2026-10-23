@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, onMounted, watch, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -24,8 +24,8 @@ const props = defineProps<{
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
-const map = ref<L.Map | null>(null)
-const marker = ref<L.Marker | null>(null)
+const map = shallowRef<L.Map | null>(null)
+const marker = shallowRef<L.Marker | null>(null)
 
 onMounted(() => {
   if (!mapContainer.value) return

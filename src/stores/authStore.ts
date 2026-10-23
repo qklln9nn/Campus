@@ -133,7 +133,6 @@ export const useAuthStore = defineStore('auth', () => {
   const session = shallowRef<Session | null>(null)
   const currentUser = ref<UserProfile | null>(null)
   const authReady = ref(false)
-  const isPasswordRecovery = ref(false)
   const isLoading = ref(false)
   const errorMessage = ref<string | null>(null)
 
@@ -183,7 +182,6 @@ export const useAuthStore = defineStore('auth', () => {
     session.value = nextSession
 
     if (!nextSession?.user) {
-      isPasswordRecovery.value = false
       return
     }
 
@@ -200,15 +198,6 @@ export const useAuthStore = defineStore('auth', () => {
     if (authSubscription) return
 
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        isPasswordRecovery.value = Boolean(nextSession)
-      } else if (
-        event === 'SIGNED_OUT' ||
-        (event === 'SIGNED_IN' && nextSession?.user.id !== session.value?.user.id)
-      ) {
-        isPasswordRecovery.value = false
-      }
-
       if (
         event === 'TOKEN_REFRESHED' &&
         nextSession?.user &&
@@ -255,7 +244,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(email: string, password: string): Promise<UserProfile> {
     isLoading.value = true
-    isPasswordRecovery.value = false
     clearError()
     let sessionCreated = false
 
@@ -288,7 +276,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function register(details: RegistrationDetails): Promise<RegistrationResult> {
     isLoading.value = true
-    isPasswordRecovery.value = false
     clearError()
     let sessionCreated = false
 
@@ -325,27 +312,6 @@ export const useAuthStore = defineStore('auth', () => {
         await queueSessionSync(null)
       }
       throw setError(error, 'Unable to create your account.')
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  async function updatePassword(password: string): Promise<void> {
-    if (!isPasswordRecovery.value || !isAuthenticated.value) {
-      throw setError(
-        new Error('Open a valid password recovery link before setting a new password.'),
-        'A valid password recovery session is required.',
-      )
-    }
-
-    isLoading.value = true
-    clearError()
-    try {
-      const { error } = await supabase.auth.updateUser({ password })
-      if (error) throw error
-      isPasswordRecovery.value = false
-    } catch (error) {
-      throw setError(error, 'Unable to update your password.')
     } finally {
       isLoading.value = false
     }
@@ -421,7 +387,6 @@ export const useAuthStore = defineStore('auth', () => {
     session,
     currentUser,
     authReady,
-    isPasswordRecovery,
     isLoading,
     errorMessage,
     isAuthenticated,
@@ -431,7 +396,6 @@ export const useAuthStore = defineStore('auth', () => {
     initializeAuth,
     login,
     register,
-    updatePassword,
     updateProfile,
     logout,
     disposeAuth,

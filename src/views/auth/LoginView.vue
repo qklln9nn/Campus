@@ -184,17 +184,11 @@ const authStore = useAuthStore()
 
 const activeTab = ref(route.query.tab === 'register' ? 'register' : 'signin')
 const isSubmitting = ref(false)
-const registrationNoticeType = ref<'success' | 'warning'>(
-  route.query.recovery === 'invalid' ? 'warning' : 'success',
-)
+const registrationNoticeType = ref<'success' | 'warning'>('success')
 const registrationNotice = ref(
-  route.query.recovery === 'invalid'
-    ? 'This password recovery link is invalid or expired. Request a new one.'
-    : route.query.confirmed === '1'
-      ? 'Email confirmed. You can now sign in.'
-      : route.query.passwordUpdated === '1'
-        ? 'Password updated. Sign in with your new password.'
-        : '',
+  route.query.confirmed === '1'
+    ? 'Email confirmed. You can now sign in.'
+    : '',
 )
 
 // --- Login Form Data & Rules ---

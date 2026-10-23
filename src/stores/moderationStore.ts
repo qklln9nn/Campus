@@ -56,11 +56,16 @@ interface RawModerationEvent {
   location: string | null
   online_link: string | null
   capacity: number
+  registered_count?: number
+  waitlist_count?: number
   image_url: string | null
   status: string
   rejection_reason: string | null
   created_at: string
-  event_locations?: { latitude: number, longitude: number } | null
+  event_locations?:
+    | { latitude: number; longitude: number }
+    | { latitude: number; longitude: number }[]
+    | null
   organiser: Relation
 }
 
@@ -113,7 +118,7 @@ export const useModerationStore = defineStore('moderation', () => {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      const rows = (data ?? []) as RawModerationEvent[]
+      const rows = (data ?? []) as unknown as RawModerationEvent[]
 
       const deletedEventIds = new Set<string>(JSON.parse(localStorage.getItem('campus_deleted_events') || '[]'))
       const cancelledEventIds = new Set<string>(JSON.parse(localStorage.getItem('campus_cancelled_events') || '[]'))
@@ -122,6 +127,9 @@ export const useModerationStore = defineStore('moderation', () => {
         .filter((row) => !deletedEventIds.has(row.id))
         .map((row) => {
           const organiser = firstRelation(row.organiser)
+          const location = Array.isArray(row.event_locations)
+            ? row.event_locations[0]
+            : row.event_locations
           let status = row.status as EventModerationStatus
           if (cancelledEventIds.has(row.id) || row.status?.toLowerCase() === 'cancelled') {
             status = 'cancelled'
@@ -139,11 +147,11 @@ export const useModerationStore = defineStore('moderation', () => {
             submittedDate: new Date(row.created_at).toLocaleDateString(),
             status,
             capacity: row.capacity,
-            registeredCount: row.registered_count || 0,
-            waitlistCount: row.waitlist_count || 0,
+            registeredCount: row.registered_count ?? 0,
+            waitlistCount: row.waitlist_count ?? 0,
             rejectionReason: row.rejection_reason ?? '',
-            latitude: row.event_locations?.latitude,
-            longitude: row.event_locations?.longitude,
+            latitude: location?.latitude,
+            longitude: location?.longitude,
           }
         })
     } catch (error) {

@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => ({
   signInWithPassword: vi.fn<() => Promise<unknown>>(),
   signUp: vi.fn<() => Promise<unknown>>(),
   signOut: vi.fn<() => Promise<unknown>>(),
-  resetPasswordForEmail: vi.fn<() => Promise<unknown>>(),
   updateUser: vi.fn<() => Promise<unknown>>(),
   onAuthStateChange: vi.fn<() => unknown>(),
   profileSingle: vi.fn<() => Promise<unknown>>(),
@@ -24,7 +23,6 @@ vi.mock('@/lib/supabase', () => ({
       signInWithPassword: mocks.signInWithPassword,
       signUp: mocks.signUp,
       signOut: mocks.signOut,
-      resetPasswordForEmail: mocks.resetPasswordForEmail,
       updateUser: mocks.updateUser,
       onAuthStateChange: mocks.onAuthStateChange,
     },
@@ -185,14 +183,4 @@ describe('auth store integration', () => {
     ).resolves.toBe('/dashboard')
   })
 
-  it('requests password recovery through the configured reset page', async () => {
-    mocks.resetPasswordForEmail.mockResolvedValueOnce({ error: null })
-    const store = useAuthStore()
-
-    await store.requestPasswordReset(' student@campus.edu ')
-
-    expect(mocks.resetPasswordForEmail).toHaveBeenCalledWith('student@campus.edu', {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-  })
 })

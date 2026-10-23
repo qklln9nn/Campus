@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
+import { ref, shallowRef, onMounted, watch, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch'
@@ -32,8 +32,8 @@ const emit = defineEmits<{
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
-const map = ref<L.Map | null>(null)
-const marker = ref<L.Marker | null>(null)
+const map = shallowRef<L.Map | null>(null)
+const marker = shallowRef<L.Marker | null>(null)
 const selectedLocation = ref<{ lat: number; lng: number } | null>(props.modelValue || null)
 
 // Campus default center (can be customized)
@@ -68,7 +68,7 @@ onMounted(() => {
   })
 
   const provider = new OpenStreetMapProvider()
-  const searchControl = new GeoSearchControl({
+  const searchControl = GeoSearchControl({
     provider: provider,
     style: 'bar',
     showMarker: false,
